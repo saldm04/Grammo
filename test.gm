@@ -1,0 +1,168 @@
+/* test.gm - full syntax coverage for Grammo */
+
+// Global variable declarations using explicit types
+var int: g_int, g_int2;
+var real: g_real;
+var bool: g_flag_true, g_flag_false;
+var string: g_message, g_tmp_str;
+
+// Global variable declarations with constant initialization (type inference)
+var g_auto_int = 10;
+var g_auto_real = 3.14;
+var g_auto_string = "global auto string";
+var g_auto_bool_true = true;
+var g_auto_bool_false = false;
+
+// ----------------------------------------
+// Functions with different return types
+// ----------------------------------------
+
+func int -> add(int: a, int: b) {
+    var int: result;
+    result = a + b;
+    return result;
+}
+
+func real -> mix(real: r, int: n) {
+    var real: tmp;
+    tmp = r * n + 0.5;
+    return tmp;
+}
+
+func bool -> complex_bool(bool: x, bool: y, int: m, int: n) {
+    var bool: result;
+    result = (x && !y) || (m <= n && m <> 0) || (m > n && m >= 0);
+    return result;
+}
+
+func string -> join3(string: a, string: b, string: c) {
+    var string: res;
+    res = a;
+    res = res + " " + b;
+    res = res + c;
+    return res;
+}
+
+func void -> helper() {
+    var int: i;
+    i = 0;
+
+    // Simple while loop with procedure call
+    while (i < 2) {
+        join3("x", "y", "z");   // proc_call used as statement
+        i = i + 1;
+    }
+
+    // Bare inner block as statement
+    {
+        var int: inner;
+        inner = -1;
+        << "Inner in helper: " inner;
+        <<! "";
+    }
+
+    return;
+}
+
+// ----------------------------------------
+// Main function: exercises all constructs
+// ----------------------------------------
+
+func void -> main() {
+    // Local variable declarations using both forms
+    var int: i, j, k;
+    var real: x, y;
+    var bool: cond;
+    var string: name, label;
+
+    var local_auto_int = 42;
+    var local_auto_real = 2.5;
+    var local_auto_string = "local auto";
+    var local_auto_bool = false;
+
+    // Simple assignments and arithmetic expressions
+    i = 1;
+    j = 2;
+    k = i + j * 3 - 4 / 2;
+    x = 1.0;
+    y = mix(x, 2);           // func_call used in expression
+    g_int = add(i, j);
+    g_real = y;
+
+    // Boolean expression with logical and comparison operators
+    cond = !(i < j) && (i == j || i <> j) && i >= 0 && i <= 100 && i > -10;
+
+    // I/O: output and input with multiple arguments and formatting
+    << "Enter a number: ";
+    >> i;
+
+    << "Enter your name: ";
+    >> name;
+
+    << "Values: " i j k;
+    <<! "Line with newline";
+
+    << "Formatted i: " #(10) i;
+    <<! "Formatted j: " #(5) j;
+
+    // If / elif / else
+    if (cond) {
+        << "cond is true, i = " i;
+        <<! "";
+    } elif (!cond && i > 0) {
+        << "first elif branch";
+        <<! "";
+    } else {
+        << "else branch";
+        <<! "";
+    }
+
+    // While loop with compound condition
+    k = 0;
+    while (k < 3 && g_auto_bool_true || !g_auto_bool_false) {
+        << "while loop k = " k;
+        <<! "";
+        k = k + 1;
+    }
+
+    // For loop with all three components
+    for (i = 0; i < 5; i = i + 1) {
+        << "for full i = " i;
+        <<! "";
+    }
+
+    // For loop without init and update
+    for (; i < 10; ) {
+        i = i + 1;
+        << "for no init/update i = " i;
+        <<! "";
+    }
+
+    // For loop without condition
+    for (j = 0; ; j = j + 1) {
+        if (j >= 3) {
+            // Logically "break" out of the loop via return
+            return;
+        }
+        << "for without condition j = " j;
+        <<! "";
+    }
+
+    // Nested block as statement
+    {
+        var int: inner_local;
+        inner_local = 42;
+        g_int2 = inner_local;
+        << "Inner block in main, inner_local = " inner_local;
+        <<! "";
+    }
+
+    // Function call returning string in expression
+    g_message = join3("Hello", name, "!");
+    <<! g_message;
+
+    // Call helper as procedure (void)
+    helper();
+
+    return;
+}
