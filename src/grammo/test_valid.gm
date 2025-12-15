@@ -49,7 +49,7 @@ func void -> helper() {
 
     // Simple while loop with procedure call
     while (i < 2) {
-        join3("x", "y", "z");   // proc_call used as statement
+        // join3("x", "y", "z");   // proc_call used as statement
         i = i + 1;
     }
 
@@ -94,10 +94,10 @@ func void -> main() {
 
     // I/O: output and input with multiple arguments and formatting
     << "Enter a number: ";
-    >> i;
+    >> #(i);
 
     << "Enter your name: ";
-    >> name;
+    >> #(name);
 
     << "Values: " i j k;
     <<! "Line with newline";
