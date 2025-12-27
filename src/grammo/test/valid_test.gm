@@ -1,0 +1,16 @@
+func void -> main() {
+    var int: i;
+    // For loop with empty condition (should be valid now)
+    for(i=0;; i=i+1) {
+       << "Loop";
+       return; 
+    }
+}
+
+func int -> f_ok(int: x) {
+    if (x > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}

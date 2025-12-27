@@ -1,0 +1,5 @@
+var int: globalVar;
+
+func void -> main() {
+    var int: globalVar; // Should error
+}

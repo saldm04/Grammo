@@ -1,13 +1,13 @@
 import sys
 from pathlib import Path
 from lark import Lark, UnexpectedInput
-from .ast_builder import ASTBuilder
-from .semantic_analyzer import SemanticAnalyzer, SemanticError
+from .semantic.ast_builder import ASTBuilder
+from .semantic.semantic_analyzer import SemanticAnalyzer, SemanticError
 
 def load_parser():
-    # Grammar is in root (../../grammo.lark) relative to src/grammo/
-    base_dir = Path(__file__).parent.parent.parent
-    grammar_path = base_dir / "grammo.lark"
+    # Grammar is in lex_syntax/grammo.lark relative to src/grammo/
+    base_dir = Path(__file__).parent
+    grammar_path = base_dir / "lex_syntax" / "grammo.lark"
     
     if not grammar_path.exists():
         # Fallback if running layout is different
@@ -31,7 +31,7 @@ def load_parser():
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python -m src.grammo.main <file.gm>")
+        print("Usage: python -m grammo.main <file.gm>")
         sys.exit(1)
 
     filename = sys.argv[1]

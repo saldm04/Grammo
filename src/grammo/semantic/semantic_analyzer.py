@@ -71,16 +71,7 @@ class SemanticAnalyzer:
         # Add params to local scope
         for param in node.params:
             if self.symbol_table.lookup(param.name):
-                # Note: checking lookup founds global too.
-                # If we want to allow shadowing global vars with params:
-                # We should check if collision is in CURRENT scope (insert returns False).
-                # But lookup finds globals.
-                # If "Unico livello di scope... TRASPARENTE a livello sintattico", it means valid code behaves as if flat.
-                # That usually means NO SHADOWING.
-                # If I have global 'x' and param 'x', is it allowed?
-                # "Gestione di un unico livello di scope... controllo su dichiarazioni multiple".
-                # This suggests NO SHADOWING.
-                # So `lookup` returning anything is an error.
+                # No Shadowing enforced
                 self.error(f"Parameter '{param.name}' collides with existing symbol.", node)
             
             p_sym = VarSymbol(name=param.name, type_name=param.type_name)
@@ -90,9 +81,48 @@ class SemanticAnalyzer:
         self.current_func_ret_type = node.return_type
         self.visit(node.body)
         self.current_func_ret_type = None
+        
+        # Pass 3ish: Control Flow Analysis for missing return
+        if node.return_type != 'void':
+            if not self._check_all_paths_return(node.body):
+                self.error(f"Function '{node.name}' (type {node.return_type}) does not return a value in all code paths.", node)
 
         # Exit function scope
         self.symbol_table.exit_scope()
+
+    def _check_all_paths_return(self, node: ast.Node) -> bool:
+        """
+        Recursively checks if the statement/block guarantees a return.
+        """
+        if isinstance(node, ast.ReturnStmt):
+            return True
+        
+        if isinstance(node, ast.Block):
+            # A block returns if ANY of its statements guarantees return.
+            for stmt in node.stmts:
+                if self._check_all_paths_return(stmt):
+                    return True
+            return False
+        
+        if isinstance(node, ast.IfStmt):
+            # Must return in THEN, ELSE, and ALL ELIFs.
+            if not node.else_block:
+                return False
+            
+            if not self._check_all_paths_return(node.then_block):
+                return False
+            
+            if not self._check_all_paths_return(node.else_block):
+                return False
+            
+            for elif_clause in node.elifs:
+                if not self._check_all_paths_return(elif_clause.block):
+                   return False
+                   
+            return True
+            
+        # While/For loops do NOT guarantee return (condition might be false initially)
+        return False
 
     # ==========================
     # Declarations
@@ -212,6 +242,8 @@ class SemanticAnalyzer:
             cond_type = self.visit(node.condition)
             if cond_type != 'bool':
                 self.error(f"For condition must be bool, got {cond_type}", node)
+        # If None, it implies 'true', which is bool, so OK.
+        
         if node.update: self.visit(node.update)
         self.visit(node.body)
 
