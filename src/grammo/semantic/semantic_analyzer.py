@@ -15,7 +15,7 @@ class SemanticAnalyzer:
         # We can collect errors or raise immediately.
         # For a better experience, raising immediately is simpler for now.
         full_msg = f"Semantic Error: {msg}"
-        if node and hasattr(node, 'line'):
+        if node and hasattr(node, 'line') and node.line != 0:
              full_msg += f" (near line {node.line})"
         raise SemanticError(full_msg)
 
@@ -275,6 +275,8 @@ class SemanticAnalyzer:
                 sym = self.symbol_table.lookup(target.name)
                 if not sym:
                     self.error(f"Input variable '{target.name}' not declared.", node)
+                if not isinstance(sym, VarSymbol):
+                    self.error(f"Input target '{target.name}' is not a variable.", node)
                 
                 # Input typically reads string. Is type conversion automatic?
                 # "definizione delle conversioni automatiche dei tipi non-stringa in stringa" was for Output.

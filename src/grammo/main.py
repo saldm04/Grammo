@@ -1,8 +1,13 @@
 import sys
+import argparse
+import logging
 from pathlib import Path
 from lark import Lark, UnexpectedInput
 from .semantic.ast_builder import ASTBuilder
 from .semantic.semantic_analyzer import SemanticAnalyzer, SemanticError
+from .codegen.code_generator import CodeGenerator
+from .codegen.optimizer import GrammoOptimizer
+from .codegen.execution import JITExecutor
 
 def load_parser():
     # Grammar is in lex_syntax/grammo.lark relative to src/grammo/
@@ -30,46 +35,70 @@ def load_parser():
     return parser
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python -m grammo.main <file.gm>")
-        sys.exit(1)
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s: %(message)s',
+        stream=sys.stdout # Ensure it prints to CLI
+    )
 
-    filename = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Grammo Compiler and Executor")
+    parser.add_argument("file", help="Input Grammo source file (.gm)")
+    parser.add_argument("-o", "--output", help="Output path for generated LLVM IR Code")
+    parser.add_argument("-O", "--opt-level", type=int, default=3, choices=[0, 1, 2, 3], help="Optimization level (0-3)")
+    
+    args = parser.parse_args()
+
+    filename = args.file
     path = Path(filename)
     if not path.exists():
-        print(f"Error: File not found: {filename}")
+        logging.error(f"File not found: {filename}")
         sys.exit(1)
 
-    print(f"Parsing {filename}...")
+    logging.info(f"Parsing {filename}...")
     try:
         src = path.read_text(encoding="utf-8")
-        parser = load_parser()
-        tree = parser.parse(src)
-        print("Parsing successful.")
+        parser_inst = load_parser() # Renamed to avoid shadowing
+        tree = parser_inst.parse(src)
+        logging.info("Parsing successful.")
 
-        print("Building AST...")
+        logging.info("Building AST...")
         builder = ASTBuilder()
         ast_root = builder.transform(tree)
         
-        print("Running Semantic Analysis...")
+        logging.info("Running Semantic Analysis...")
         analyzer = SemanticAnalyzer()
         analyzer.analyze(ast_root)
+        logging.info("Semantic Analysis Successful! No errors found.")
         
-        print("Semantic Analysis Successful! No errors found.")
+        logging.info("Generating LLVM IR...")
+        codegen = CodeGenerator()
+        llvm_module = codegen.visit(ast_root)
         
-        # Optional: Print Symbol Table summary?
-        # print("Global Symbols:", analyzer.symbol_table.scopes[0].keys())
+        logging.info(f"Optimizing (Level {args.opt_level})...")
+        optimizer = GrammoOptimizer()
+        # optimize returns a ModuleRef
+        optimized_mod_ref = optimizer.optimize(llvm_module, speed_level=args.opt_level)
+        
+        if args.output:
+            logging.info(f"Writing output to {args.output}...")
+            with open(args.output, "w") as f:
+                f.write(str(optimized_mod_ref))
+                
+        logging.info("Executing...")
+        executor = JITExecutor()
+        executor.run(optimized_mod_ref)
 
     except UnexpectedInput as e:
-        print(f"Syntax Error at line {e.line}, column {e.column}:\n")
-        print(e.get_context(src))
-        print(e)
+        logging.error(f"Syntax Error at line {e.line}, column {e.column}:\n")
+        logging.error(e.get_context(src))
+        logging.error(str(e))
         sys.exit(1)
     except SemanticError as e:
-        print(f"Semantic Error:\n{e}")
+        logging.error(f"Semantic Error:\n{e}")
         sys.exit(1)
     except Exception as e:
-        print(f"Unexpected Error: {e}")
+        logging.critical(f"Unexpected Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

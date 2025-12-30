@@ -1,0 +1,24 @@
+func int -> fact(int: n) {
+    var int: i, r;
+
+    if (n < 0) {
+        return 0;
+    }
+    else {
+        r = 1;
+        for (i = 1; i <= n; i = i + 1) {
+            r = r * i;
+        }
+        return r;
+    }
+}
+
+func void -> main() {
+    var int: n, r;
+
+    >> "Inserisci n: " # (n);
+    r = fact(n);
+    <<! "fact(n)=" # (r);
+
+    return;
+}

@@ -1,0 +1,33 @@
+func int -> fib(int: n) {
+    var int: a, b, i, t;
+
+    if (n <= 0) {
+        return 0;
+    }
+    elif (n == 1) {
+        return 1;
+    }
+    else {
+        a = 0;
+        b = 1;
+        i = 2;
+
+        while (i <= n) {
+            t = a + b;
+            a = b;
+            b = t;
+            i = i + 1;
+        }
+
+        return b;
+    }
+}
+
+func void -> main() {
+    var int: n, r;
+
+    >> "Inserisci n: " # (n);
+    r = fib(n);
+    <<! "fib(n)=" # (r);
+    return;
+}

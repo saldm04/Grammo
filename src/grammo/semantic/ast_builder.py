@@ -1,4 +1,5 @@
 from lark import Transformer, v_args
+import ast as py_ast
 from . import ast_nodes as ast
 
 class ASTBuilder(Transformer):
@@ -132,7 +133,7 @@ class ASTBuilder(Transformer):
         elif t_type == 'REAL_CONST':
             return ast.Literal(value=float(val), type_name='real')
         elif t_type == 'STRING_CONST':
-            return ast.Literal(value=val[1:-1], type_name='string') # strip quotes
+            return ast.Literal(value=py_ast.literal_eval(val), type_name='string') # strip quotes via eval
         elif t_type == 'TRUE':
             return ast.Literal(value=True, type_name='bool')
         elif t_type == 'FALSE':
@@ -192,69 +193,28 @@ class ASTBuilder(Transformer):
         return ast.InputStmt(args=items[1])
 
     def io_args(self, items):
-        # (expr | HASH LPAR expr RPAR)*
-        # This one is tricky because structure is flat sequence.
-        # Lark might give us mixed tokens/nodes.
-        # HASH LPAR expr RPAR -> we want to capture that specific structure if possible?
-        # But here `items` is just a list of children.
-        # If we see HASH, then LPAR, then expr, then RPAR.
-        # However, `expr` is a node.
-        
-        # Actually, simpler:
-        # HASH LPAR expr RPAR -> Could be handled by a sub-rule? No, it's inline.
-        # Wait, the rule is `io_args: (expr | HASH LPAR expr RPAR)*`
-        # Lark will give us a list of ALL children.
-        # e.g. [Expr, HASH, LPAR, Expr, RPAR, Expr]
-        
-        args = []
-        i = 0
-        while i < len(items):
-            item = items[i]
-            if getattr(item, 'type', None) == 'HASH':
-                # Skip HASH, LPAR(next), Expr(next+1), RPAR(next+2)
-                # The expr we want is at i+2
-                if i + 2 < len(items):
-                    expr_node = items[i+2]
-                    # We treat this specially? The prompt said:
-                    # "#(Expr) per interpolare un’espressione nei flussi di I/O."
-                    # In InputStmt, #(Expr) must be an ID (target variable).
-                    # I will wrap this in a special arg type?
-                    # Or just treat it as an expression but context matters?
-                    # Let's support an IOArg wrapper in AST.
-                    # Wait, defined `ExprArg`. Maybe `InterpolatedArg`?
-                    # Let's abuse `ExprArg` or add `InterpolatedArg`.
-                    # I'll modify AST node usage slightly or just store as ExprArg.
-                    # Actually, for output it's just expr. For input it's variable.
-                    # But the syntax `#( )` distinguishes it.
-                    # I'll assume valid syntax and just collect exprs, but I lose the `#` distinction if I don't wrap it.
-                    # Let's assume standard exprs are just values/prompts, hash exprs are ... something else?
-                    # Actually for Output, `<< "Sum: " #(a+b)` -> print string, then print value of a+b.
-                    # It seems `#(...)` is just an explicit separation or formatting?
-                    # Re-reading: "Scelte semantiche: ... In input (InputStmt): gli argomenti HASH LPAR Expr RPAR dovranno essere identificatori ... eventuali Expr 'nude' saranno normalmente stringhe di prompt".
-                    # So `#(...)` is semantically significant (Target vs Prompt).
-                    # I need to distinguish them in AST.
-                    # I'll use a wrapper class locally or modify AST.
-                    pass
-                args.append(item) # Placeholder logic, will fix in loop
-            i += 1
-            
-        # Refined loop:
         final_args = []
         idx = 0
         while idx < len(items):
             item = items[idx]
-            if hasattr(item, 'type') and item.type == 'HASH':
-                 # Sequence is HASH, LPAR, Expr, RPAR
-                 expr = self._to_expr(items[idx+2])
-                 final_args.append(ast.UnaryExpr(operator='#', operand=expr))
-                 idx += 4
-            else:
-                 # Try to convert to expr
-                 e = self._to_expr(item)
-                 if isinstance(e, ast.Expr):
-                     final_args.append(e)
-                 # else skip terminals like tokens of other types (if any)
-                 idx += 1
+            is_hash = hasattr(item, "type") and item.type == "HASH"
+            if is_hash and idx + 3 < len(items):
+                t1 = items[idx + 1]
+                mid = items[idx + 2]
+                t3 = items[idx + 3]
+                is_lpar = hasattr(t1, "type") and t1.type == "LPAR"
+                is_rpar = hasattr(t3, "type") and t3.type == "RPAR"
+                if is_lpar and is_rpar:
+                    expr = self._to_expr(mid)
+                    final_args.append(ast.UnaryExpr(operator="#", operand=expr))
+                    idx += 4
+                    continue  # importante
+            # fallback: singolo expr
+            e = self._to_expr(item)
+            if isinstance(e, ast.Expr):
+                final_args.append(e)
+            idx += 1
+
         return final_args
 
     # Control Flow
@@ -369,7 +329,7 @@ class ASTBuilder(Transformer):
              elif t_type == 'REAL_CONST':
                  return ast.Literal(value=float(val), type_name='real')
              elif t_type == 'STRING_CONST':
-                 return ast.Literal(value=val[1:-1], type_name='string')
+                 return ast.Literal(value=py_ast.literal_eval(val), type_name='string')
              elif t_type == 'TRUE':
                  return ast.Literal(value=True, type_name='bool')
              elif t_type == 'FALSE':

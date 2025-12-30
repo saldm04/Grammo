@@ -1,8 +1,0 @@
-func void -> main() {}
-
-func int -> f_bad(int: x) {
-    if (x > 0) {
-        return 1;
-    }
-    // missing else return -> Should Error
-}

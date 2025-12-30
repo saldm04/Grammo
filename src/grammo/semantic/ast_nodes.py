@@ -117,22 +117,13 @@ class ForStmt(Stmt):
     body: Block
 
 @dataclass(kw_only=True)
-class IOArg(Node):
-    """Argument for IO statements which can be an expression or specific formatting."""
-    pass
-
-@dataclass(kw_only=True)
-class ExprArg(IOArg):
-    expr: Expr
-
-@dataclass(kw_only=True)
 class OutputStmt(Stmt):
     is_newline: bool
-    args: List[IOArg] = field(default_factory=list)
+    args: List[Expr] = field(default_factory=list)
 
 @dataclass(kw_only=True)
 class InputStmt(Stmt):
-    args: List[IOArg] = field(default_factory=list)
+    args: List[Expr] = field(default_factory=list)
 
 # ==========================================
 # Declarations

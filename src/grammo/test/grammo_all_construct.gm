@@ -1,0 +1,173 @@
+// =====================================================
+// Grammo "all-constructs" test program (semantically aligned)
+// Goal: build AST + pass semantic checks per project specs
+// =====================================================
+
+// -----------------------------
+// Top-level variable declarations
+// -----------------------------
+var int: g_i, g_j, g_k;
+var real: g_r1, g_r2;
+var bool: g_b1, g_b2;
+var string: g_s1, g_s2;
+
+var G_PI = 3.14159;
+var G_ANSWER = 42;
+var G_FLAG = true;
+var G_BANNER = "Grammo front-end test";
+
+// -----------------------------
+// Functions / Procedures
+// -----------------------------
+
+// Procedure (void): may use `return;` (no expression)
+func void -> log(string: lg_msg) {
+    // outputln_stmt with io_args containing expr
+    <<! lg_msg;
+
+    // outputln_stmt with empty io_args (io_args is *)
+    <<!;
+
+    return;
+}
+
+// Function (int): must return an int expression on all paths
+func int -> add(int: add_a, int: add_b) {
+    var int: add_res;
+    add_res = add_a + add_b;
+    return add_res;
+}
+
+// Function (real): exercises TIMES, DIV, MINUS, unary MINUS, parentheses
+func real-> mix(real: mx_x, real: mx_y) {
+    return (mx_x * mx_y) / (mx_x - -mx_y);
+}
+
+// Function (string): exercises string concatenation (string + string)
+func string -> greet(string: gr_name) {
+    var string: gr_prefix, gr_full;
+    gr_prefix = "Hi, ";
+    gr_full = gr_prefix + gr_name;
+    return gr_full;
+}
+
+// Function (bool): exercises NOT, AND, OR, EQ, NE, LT, LE, GT, GE
+func bool -> complex_bool(bool: cb_p, bool: cb_q, int: cb_n) {
+    var bool: cb_r;
+
+    cb_r = (!cb_p && cb_q) || (cb_n == 0) || (cb_n <> 1);
+    cb_r = cb_r && (cb_n < 10) && (cb_n <= 10) && (cb_n > -1) && (cb_n >= 0);
+
+    return cb_r;
+}
+
+// Covers: for (;; ) with all optional parts omitted (terminates via return)
+func void -> cover_for_all_omitted() {
+    for (; ; ) {
+        <<! "cover_for_all_omitted reached";
+        return;
+    }
+}
+
+// Covers: for (init; ; update) with missing condition (terminates via return)
+func void -> cover_for_missing_cond(int: fc_limit) {
+    var int: fc_i;
+    fc_i = 0;
+
+    for (fc_i = 0; ; fc_i = fc_i + 1) {
+        if (fc_i >= fc_limit) {
+            <<! "cover_for_missing_cond done";
+            return;
+        }
+    }
+}
+
+// -----------------------------
+// Entry point
+// -----------------------------
+func void -> main() {
+    // Local var_decl forms (typed list + const_expr assignment form)
+    var int: m_i, m_sum, m_tmp_int;
+    var real: m_acc, m_tmp_real;
+    var bool: m_ok;
+    var string: m_name, m_msg;
+
+    var M_LOCAL_CONST_INT = 7;
+    var M_LOCAL_CONST_REAL = 2.5;
+    var M_LOCAL_CONST_BOOL = false;
+    var M_LOCAL_CONST_STR = "local";
+
+    // Assignments with literals and vars
+    m_i = 0;
+    m_sum = 0;
+    m_acc = 0.0;
+    m_ok = true;
+    m_name = "Ada";
+
+    // proc_call statement: only valid for void procedures
+    log("Starting...");
+    log(G_BANNER);
+
+    // output_stmt with io_args mixing expr and HASH(LPAR expr RPAR)
+    << "name=" # (m_name) "  i=" # (m_i) "  ok=" # (m_ok);
+
+    // input_stmt: prompt must be string; #(Expr) must be an assignable ID
+    >> "Enter a value for i: " # (m_i);
+
+    // Nested block statement (blocks do NOT create a new scope per specs)
+    {
+        var int: m_inner;
+        m_inner = 1 + 2 * 3;                // precedence: TIMES before PLUS
+
+        // Use real division to avoid any int/int DIV typing ambiguity
+        m_tmp_real = (m_inner + 4) / 2.0;   // parentheses + DIV on reals
+
+        << "inner=" # (m_inner) " tmp_real=" # (m_tmp_real);
+    }
+
+    // Also cover int->real promotion on call arguments (int passed to real parameter)
+    m_acc = mix(G_PI, m_i);
+
+    // if_stmt with elif_list and else_block (all conditions bool)
+    if ((m_i == 0) || (!m_ok && (m_i <> 1))) {
+        <<! "Branch: IF";
+        m_msg = greet(m_name);              // func_call in expr context
+        << "greet=" # (m_msg);
+    }
+    elif ((m_i > 0) && (m_i < 10)) {
+        <<! "Branch: ELIF 1";
+        m_sum = add(m_i, 2);
+        << "sum=" # (m_sum);
+    }
+    elif ((m_i >= 10) && (m_i <= 20)) {
+        <<! "Branch: ELIF 2";
+        m_acc = mix(G_PI, 2.0);
+        << "acc=" # (m_acc);
+    }
+    else {
+        <<! "Branch: ELSE";
+        m_ok = complex_bool(false, true, m_i);
+        << "ok=" # (m_ok);
+    }
+
+    // while_stmt (condition must be bool)
+    while ((m_i < 5) && m_ok) {
+        m_sum = m_sum + m_i;
+        m_i = m_i + 1;
+        m_ok = !false;                      // NOT + FALSE literal
+        << "loop i=" # (m_i) " sum=" # (m_sum);
+    }
+
+    // for_stmt with all parts present
+    for (m_i = 0; m_i < 3; m_i = m_i + 1) {
+        m_tmp_int = add(m_i, 1);
+        m_sum = m_sum + m_tmp_int;
+        << "for1 i=" # (m_i) " sum=" # (m_sum);
+    }
+
+    // for_stmt variants (missing condition; all omitted) covered via procedures
+    cover_for_missing_cond(2);
+    cover_for_all_omitted();
+
+    return;
+}

@@ -1,0 +1,39 @@
+func real -> calc(real: a, real: b, int: op) {
+    // op: 1=+, 2=-, 3=*, 4=/
+    if (op == 1) {
+        return a + b;
+    }
+    elif (op == 2) {
+        return a - b;
+    }
+    elif (op == 3) {
+        return a * b;
+    }
+    else {
+        // op==4 (divisione) oppure default
+        if (b == 0.0) {
+            <<! "Errore: divisione per zero";
+            return 0.0;
+        }
+        else {
+            return a / b;
+        }
+    }
+}
+
+func void -> main() {
+    var real: a, b, res;
+    var int: op;
+
+    <<! "Calcolatrice semplice";
+    <<! "1=+  2=-  3=*  4=/";
+
+    >> "Operazione: " # (op);
+    >> "A: " # (a);
+    >> "B: " # (b);
+
+    res = calc(a, b, op);
+    <<! "Risultato=" # (res);
+
+    return;
+}
