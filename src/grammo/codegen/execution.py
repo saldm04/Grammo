@@ -1,5 +1,6 @@
 import llvmlite.binding as llvm
 import ctypes
+import ctypes.util
 
 class JITExecutor:
     def __init__(self):
@@ -23,7 +24,12 @@ class JITExecutor:
             if hasattr(ctypes, 'cdll') and hasattr(ctypes.cdll, 'msvcrt'):
                 libc = ctypes.cdll.msvcrt
             else:
-                libc = ctypes.CDLL(None)
+                # Robust fallback for MacOS/Linux
+                libc_path = ctypes.util.find_library('c')
+                if libc_path:
+                    libc = ctypes.CDLL(libc_path)
+                else:
+                    libc = ctypes.CDLL(None)
         except OSError:
              # Fallback or strict error
              libc = None
