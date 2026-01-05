@@ -3,7 +3,13 @@ import ast as py_ast
 from . import ast_nodes as ast
 
 class ASTBuilder(Transformer):
+    """Transform Lark parse tree into a custom AST.
+
+    Methods match the grammar rules in the Lark file.
+    """
+
     def start(self, items):
+        """Returns the root of the AST."""
         return items[0]
 
     def program(self, items):
@@ -15,62 +21,30 @@ class ASTBuilder(Transformer):
 
     # Declarations
     def func_def(self, items):
-        # FUNC return_type ARROW ID LPAR param_list? RPAR block
-        # items: [return_type, ID, param_list (optional), block]
-        # Lark strips terminals like FUNC, ARROW, LPAR, RPAR by default in tree unless kept?
-        # No, Transformer usually gets reduced items of the rule.
-        # Rule: FUNC return_type ARROW ID LPAR param_list? RPAR block
-        
-        # We need to filter out tokens if they are kept or handle indices carefully.
-        # But wait, in standard Lark (not keep_all_tokens), terminals are discarded if not named or if they are literals?
-        # Actually usually terminals defined as strings in the grammar (like "func") appear as Token objects if not filtered?
-        # Let's assume standard behavior: items matches the structure of the rule without ignored stuff.
-        # ID is a terminal.
-        
-        # return_type is items[0]
-        # ID is items[1]
-        # param_list? : if present, items[2] is param_list, items[3] is block
-        # if absent, items[2] is block?
-        
-        # Actually, let's look at the rule:
-        # func_def: FUNC return_type ARROW ID LPAR param_list? RPAR block
-        
-        # The tokens FUNC, ARROW, LPAR, RPAR are unlikely to be in `items` if they are anonymous literals 
-        # UNLESS ! is used or similar. But here they are named terminals in the token section 
-        # e.g. FUNC: "func".
-        # If they are named terminals, they DO appear in `items`.
-        
-        # Let's inspect items carefully.
-        # 0: FUNC (Token)
-        # 1: return_type (Result of return_type rule)
-        # 2: ARROW (Token)
-        # 3: ID (Token)
-        # 4: LPAR (Token)
-        # ... param_list? 
-        # ... RPAR (Token)
-        # ... block
-        
-        # Helper to filter tokens that are purely syntactic sugar?
-        # Or just index by position.
-        
+        """Handles function definitions.
+
+        Rule: FUNC return_type ARROW ID LPAR param_list? RPAR block
+        """
+        # items structure:
+        # 1: return_type
+        # 3: ID (function name)
+        # 5: param_list (optional, if present)
+        # last: block
+
         ret_type = items[1]
         func_name = str(items[3])
-        
+
         # Check if param_list is present
-        # We can scan for Block.
         block_idx = len(items) - 1
         block = items[block_idx]
-        
-        # params are between LPAR (4) and RPAR.
-        # if param_list is present, it will be at index 5.
-        # If no params, index 5 is RPAR?
-        
+
         params = []
-        if len(items) > 7: # FUNC RET ARROW ID LPAR PARAMS RPAR BLOCK = 8 items
+        # FUNC RET ARROW ID LPAR PARAMS RPAR BLOCK = 8 items
+        if len(items) > 7:
              # item 5 is param_list
              if isinstance(items[5], list):
                  params = items[5]
-        
+
         return ast.FuncDef(name=func_name, return_type=ret_type, params=params, body=block)
 
     def return_type(self, items):
@@ -96,25 +70,21 @@ class ASTBuilder(Transformer):
         return ast.Param(type_name=items[0].name, name=str(items[2]))
 
     def var_decl(self, items):
-        # Two forms:
-        # 1. VAR type COLON id_list SEMI
-        # 2. VAR ID ASSIGN const_expr SEMI
-        
+        """Handles variable declarations.
+
+        Forms:
+        1. VAR type COLON id_list SEMI
+        2. VAR ID ASSIGN const_expr SEMI
+        """
         # items[0] is VAR token
-        
-        if isinstance(items[1], ast.Type): 
-            # Case 1
-            # 1: type
-            # 2: COLON
-            # 3: id_list (list of strings)
-            # 4: SEMI
+
+        if isinstance(items[1], ast.Type):
+            # Case 1: var <type>: <id_list>;
+            # 1: type, 2: COLON, 3: id_list, 4: SEMI
             return ast.VarDecl(type_name=items[1].name, names=items[3])
         else:
-            # Case 2
-            # 1: ID
-            # 2: ASSIGN
-            # 3: const_expr (Literal)
-            # 4: SEMI
+            # Case 2: var <name> = <const>;
+            # 1: ID, 2: ASSIGN, 3: const_expr, 4: SEMI
             return ast.VarInit(name=str(items[1]), value=items[3])
 
     def id_list(self, items):
@@ -259,39 +229,24 @@ class ASTBuilder(Transformer):
         return ast.WhileStmt(condition=items[2], body=items[4])
 
     def for_stmt(self, items):
-        # FOR LPAR for_init? SEMI expr? SEMI for_update? RPAR block
-        # Indices are fixedish but optional items might be None or missing tokens?
-        # Layout: FOR(0) LPAR(1) INIT?(2) SEMI(3) EXPR?(4) SEMI(5) UPDATE?(6) RPAR(7) BODY(8)
-        # But optional rules in Lark (`name?`) might be present or None in the list, OR omitted from list.
-        # Lark standard parser usually includes `None` if `maybe_placeholders=True`.
-        # Code checked `maybe_placeholders=False` in `check_grammo.py`.
-        # So missing items are missing from the list.
-        
-        # We have terminals: FOR, LPAR, SEMI, SEMI, RPAR.
-        # Let's count SEMIs to find positions.
-        
-        # Easier strategy: filter children by type?
-        # init is AssignStmt
-        # expr is Expr
-        # update is AssignStmt
-        # block is Block
-        
-        # Be careful: Init and Update are BOTH AssignStmt.
-        # We need position relative to SEMIs.
-        
+        """Handles for loops.
+
+        Rule: FOR LPAR for_init? SEMI expr? SEMI for_update? RPAR block
+        """
+        # We categorize children based on their type and position relative to semicolons.
         init = None
         cond = None
         update = None
         body = None
-        
-        # Scan items
-        current_stage = 0 # 0: before 1st semi, 1: between semis, 2: after 2nd semi
-        
+
+        # 0: before 1st semi, 1: between semis, 2: after 2nd semi
+        current_stage = 0
+
         for item in items:
             if hasattr(item, 'type') and item.type == 'SEMI':
                 current_stage += 1
                 continue
-            
+
             if isinstance(item, ast.AssignStmt):
                 if current_stage == 0:
                     init = item
@@ -302,7 +257,7 @@ class ASTBuilder(Transformer):
                     cond = item
             elif isinstance(item, ast.Block):
                 body = item
-        
+
         return ast.ForStmt(init=init, condition=cond, update=update, body=body)
 
     def for_init(self, items):

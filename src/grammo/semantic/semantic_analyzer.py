@@ -3,15 +3,27 @@ from . import ast_nodes as ast
 from .symbol_table import SymbolTable, VarSymbol, FuncSymbol, Symbol
 
 class SemanticError(Exception):
+    """Exception raised for semantic analysis errors."""
     pass
 
 class SemanticAnalyzer:
+    """Performs semantic analysis on the AST.
+
+    Checks for:
+    - Undeclared variables/functions.
+    - Type mismatches.
+    - Control flow issues (e.g. missing returns).
+    - Scope rules.
+    """
+
     def __init__(self):
+        """Initializes the semantic analyzer with an empty symbol table."""
         self.symbol_table = SymbolTable()
         self.current_func_ret_type = None
         self.errors = []
 
     def error(self, msg: str, node: ast.Node = None):
+        """Raises a SemanticError with the given message and node location."""
         # We can collect errors or raise immediately.
         # For a better experience, raising immediately is simpler for now.
         full_msg = f"Semantic Error: {msg}"
@@ -32,6 +44,11 @@ class SemanticAnalyzer:
     # ==========================
 
     def analyze(self, program_node: ast.Program):
+        """Runs the semantic analysis on the program.
+
+        Args:
+            program_node (ast.Program): The root AST node.
+        """
         # Pass 1: Register all global functions and variables
         # This allows functions to call each other regardless of order.
         for decl in program_node.decls:
@@ -91,9 +108,7 @@ class SemanticAnalyzer:
         self.symbol_table.exit_scope()
 
     def _check_all_paths_return(self, node: ast.Node) -> bool:
-        """
-        Recursively checks if the statement/block guarantees a return.
-        """
+        """Recursively checks if the statement/block guarantees a return."""
         if isinstance(node, ast.ReturnStmt):
             return True
         

@@ -1,6 +1,11 @@
+"""Main entry point for the Grammo Compiler.
+
+Handles command-line arguments, parsing, analysis, code generation, and execution.
+"""
 import sys
 import argparse
 import logging
+from pprint import pprint
 from pathlib import Path
 from lark import Lark, UnexpectedInput
 from .semantic.ast_builder import ASTBuilder
@@ -10,6 +15,11 @@ from .codegen.optimizer import GrammoOptimizer
 from .codegen.execution import JITExecutor
 
 def load_parser():
+    """Loads the Lark parser for Grammo grammar.
+
+    Returns:
+        Lark: The initialized Lark parser instance.
+    """
     # Grammar is in lex_syntax/grammo.lark relative to src/grammo/
     base_dir = Path(__file__).parent
     grammar_path = base_dir / "lex_syntax" / "grammo.lark"
@@ -35,6 +45,7 @@ def load_parser():
     return parser
 
 def main():
+    """Main execution entry point."""
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
@@ -46,6 +57,7 @@ def main():
     parser.add_argument("file", help="Input Grammo source file (.gm)")
     parser.add_argument("-o", "--output", help="Output path for generated LLVM IR Code")
     parser.add_argument("-O", "--opt-level", type=int, default=3, choices=[0, 1, 2, 3], help="Optimization level (0-3)")
+    parser.add_argument("-a", "--ast", action="store_true", help="Print the AST structure to console.")
     
     args = parser.parse_args()
 
@@ -70,6 +82,10 @@ def main():
         analyzer = SemanticAnalyzer()
         analyzer.analyze(ast_root)
         logging.info("Semantic Analysis Successful! No errors found.")
+        
+        if args.ast:
+            logging.info("AST Structure:")
+            pprint(ast_root)
         
         logging.info("Generating LLVM IR...")
         codegen = CodeGenerator()

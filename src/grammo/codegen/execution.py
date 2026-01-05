@@ -3,16 +3,24 @@ import ctypes
 import ctypes.util
 
 class JITExecutor:
+    """Executes compiled LLVM modules using MCJIT.
+
+    Handles initialization of LLVM native targets and finding standard library symbols.
+    """
+
     def __init__(self):
+        """Initializes the JIT executor."""
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
 
     def run(self, module_ref):
-        """
-        Executes the 'main' function in the given LLVM module using MCJIT.
-        
+        """Executes the 'main' function in the given LLVM module.
+
         Args:
-            module_ref (llvmlite.binding.ModuleRef): The compiled module.
+            module_ref (llvmlite.binding.ModuleRef): The compiled LLVM module.
+
+        Raises:
+            RuntimeError: If the 'main' function cannot be found in the module.
         """
         # Create a target machine
         target = llvm.Target.from_default_triple()
@@ -49,10 +57,6 @@ class JITExecutor:
         engine.finalize_object()
         
         # Look up 'main' function
-        # Grammo 'main' is void -> main(). 
-        # But depending on name munging or if I named it 'main'.
-        # I named it 'main' in CodeGenerator.
-        
         func_ptr = engine.get_function_address("main")
         if not func_ptr:
             raise RuntimeError("Could not find 'main' function in the module.")

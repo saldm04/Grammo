@@ -1,20 +1,26 @@
 import llvmlite.binding as llvm
 
 class GrammoOptimizer:
+    """Optimizes LLVM modules using the New Pass Manager.
+
+    Attributes:
+        None
+    """
+
     def __init__(self):
+        """Initializes the optimizer and native targets."""
         # Initialize LLVM native target if not already done
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
 
     def optimize(self, module, speed_level=3, size_level=0):
-        """
-        Optimizes the given LLVM module using the New Pass Manager.
-        
+        """Optimizes the given LLVM module.
+
         Args:
             module (llvmlite.ir.Module): The module to optimize.
             speed_level (int): Optimization level for speed (0-3).
             size_level (int): Optimization level for size (0-2).
-            
+
         Returns:
             llvmlite.binding.ModuleRef: The optimized module reference.
         """

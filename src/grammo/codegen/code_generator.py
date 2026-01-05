@@ -2,7 +2,17 @@ from llvmlite import ir, binding
 from ..semantic import ast_nodes as ast
 
 class CodeGenerator:
+    """Generates LLVM IR from the Grammo AST.
+
+    Attributes:
+        module: The LLVM module being generated.
+        builder: The LLVM IR builder.
+        func_symtab: A symbol table for function-local variables.
+        current_func: The current LLVM function being compiled.
+    """
+
     def __init__(self):
+        """Initializes the code generator."""
         self.module = ir.Module(name="grammo_module")
         self.module.triple = binding.get_default_triple()
         self.builder = None
@@ -28,6 +38,7 @@ class CodeGenerator:
         }
 
     def _declare_stdlib(self):
+        """Declares standard library functions (printf, scanf, etc.) in the module."""
         # void printf(i8*, ...)
         void_ptr_type = ir.IntType(8).as_pointer()
         printf_ty = ir.FunctionType(ir.IntType(32), [void_ptr_type], var_arg=True)
@@ -55,9 +66,11 @@ class CodeGenerator:
         self.strcat = ir.Function(self.module, strcat_ty, name="strcat")
 
     def _get_llvm_type(self, type_name):
+        """Maps Grammo types to LLVM types."""
         return self.type_map.get(type_name, ir.VoidType())
 
     def visit(self, node):
+        """Dispatches the visit method for the given node."""
         return getattr(self, f"visit_{node.__class__.__name__}")(node)
 
     # ==========================
@@ -65,11 +78,13 @@ class CodeGenerator:
     # ==========================
 
     def visit_Program(self, node: ast.Program):
+        """Generates code for the program declarations."""
         for decl in node.decls:
             self.visit(decl)
         return self.module
 
     def visit_VarDecl(self, node: ast.VarDecl):
+        """Generates code for a variable declaration."""
         # Global variable declaration (if strictly global context)
         # OR local if inside function.
         llvm_type = self._get_llvm_type(node.type_name)
@@ -95,6 +110,7 @@ class CodeGenerator:
                 self.builder.store(init_const, alloca)
 
     def visit_VarInit(self, node: ast.VarInit):
+        """Generates code for a variable initialization."""
         # var <name> = <const>;
         val = self.visit(node.value) # Should be a constant literal
         
@@ -108,6 +124,7 @@ class CodeGenerator:
             self.func_symtab[node.name] = alloca
 
     def visit_FuncDef(self, node: ast.FuncDef):
+        """Generates code for a function definition."""
         ret_type = self._get_llvm_type(node.return_type)
         param_types = [self._get_llvm_type(p.type_name) for p in node.params]
         func_ty = ir.FunctionType(ret_type, param_types)
