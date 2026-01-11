@@ -1,0 +1,71 @@
+// =====================================================
+// Grammo demo: Mini "conto corrente" con menu (while, if/elif/else, procedure)
+// =====================================================
+
+var G_START_BAL = 1000.0;
+var G_TITLE = "Mini Bank Demo";
+
+func void -> show_menu() {
+    <<!;
+    <<! G_TITLE;
+    <<! "1 = Mostra saldo";
+    <<! "2 = Deposita";
+    <<! "3 = Preleva";
+    <<! "0 = Esci";
+    return;
+}
+
+func real -> deposit(real: dp_bal, real: dp_amt) {
+    return dp_bal + dp_amt;
+}
+
+func real -> withdraw(real: wd_bal, real: wd_amt) {
+    if (wd_amt <= 0.0) {
+        <<! "Importo non valido";
+        return wd_bal;
+    }
+    elif (wd_amt > wd_bal) {
+        <<! "Fondi insufficienti";
+        return wd_bal;
+    }
+    else {
+        return wd_bal - wd_amt;
+    }
+}
+
+func void -> main() {
+    var real: m_balance, m_amount;
+    var int: m_choice;
+    var bool: m_running;
+
+    m_balance = G_START_BAL;
+    m_running = true;
+
+    while (m_running) {
+        show_menu();
+        >> "Scelta: " # (m_choice);
+
+        if (m_choice == 1) {
+            <<! "Saldo=" # (m_balance);
+        }
+        elif (m_choice == 2) {
+            >> "Importo deposito: " # (m_amount);
+            m_balance = deposit(m_balance, m_amount);
+            <<! "Nuovo saldo=" # (m_balance);
+        }
+        elif (m_choice == 3) {
+            >> "Importo prelievo: " # (m_amount);
+            m_balance = withdraw(m_balance, m_amount);
+            <<! "Nuovo saldo=" # (m_balance);
+        }
+        elif (m_choice == 0) {
+            m_running = false;
+        }
+        else {
+            <<! "Scelta non valida";
+        }
+    }
+
+    <<! "Arrivederci.";
+    return;
+}

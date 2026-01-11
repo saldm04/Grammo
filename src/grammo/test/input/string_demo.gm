@@ -1,0 +1,38 @@
+// =====================================================
+// Grammo demo: Stringhe (concatenazione, ripetizione, composizione)
+// =====================================================
+
+func string -> repeat(string: rp_s, int: rp_n) {
+    var string: rp_out;
+    var int: rp_i;
+
+    rp_out = "";
+    for (rp_i = 0; rp_i < rp_n; rp_i = rp_i + 1) {
+        rp_out = rp_out + rp_s;
+    }
+    return rp_out;
+}
+
+func string -> surround(string: sd_core, string: sd_left, string: sd_right) {
+    return sd_left + sd_core + sd_right;
+}
+
+func void -> main() {
+    var string: m_name, m_tag, m_line, m_msg;
+    var int: m_width;
+
+    <<! "Demo stringhe";
+    >> "Nome: " # (m_name);
+    >> "Larghezza linea (int): " # (m_width);
+
+    m_line = repeat("-", m_width);
+    m_tag = surround(m_name, "[", "]");
+    m_msg = "Ciao " + m_tag + "!";
+
+    <<! m_line;
+    <<! m_msg;
+    <<! "Echo: " # (repeat(m_name, 2));
+    <<! m_line;
+
+    return;
+}

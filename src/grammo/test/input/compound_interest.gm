@@ -1,0 +1,39 @@
+// =====================================================
+// Grammo demo: Interessi composti (real + int, for, output formattato)
+// =====================================================
+
+var G_TITLE = "Interessi composti";
+
+func real -> apply_interest(real: ai_balance, real: ai_rate_percent) {
+    return ai_balance * (1.0 + ai_rate_percent / 100.0);
+}
+
+func void -> main() {
+    var real: m_principal, m_rate, m_balance;
+    var int: m_years, m_y;
+
+    <<! G_TITLE;
+    >> "Capitale iniziale (real): " # (m_principal);
+    >> "Tasso annuo % (real): " # (m_rate);
+    >> "Anni (int >= 0): " # (m_years);
+
+    if (m_years < 0) {
+        <<! "Errore: anni deve essere >= 0";
+        return;
+    }
+    else {
+        m_balance = m_principal;
+
+        if (m_rate == 0.0) {
+            <<! "Tasso nullo: saldo costante.";
+        }
+
+        for (m_y = 1; m_y <= m_years; m_y = m_y + 1) {
+            m_balance = apply_interest(m_balance, m_rate);
+            <<! "Anno " # (m_y) " saldo=" # (m_balance);
+        }
+
+        <<! "Saldo finale=" # (m_balance);
+        return;
+    }
+}

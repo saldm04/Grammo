@@ -79,8 +79,25 @@ class CodeGenerator:
 
     def visit_Program(self, node: ast.Program):
         """Generates code for the program declarations."""
+        # Pass 1: Declare all functions and globals first
         for decl in node.decls:
-            self.visit(decl)
+            if isinstance(decl, ast.FuncDef):
+                self._declare_prototype(decl)
+            elif isinstance(decl, ast.VarDecl) or isinstance(decl, ast.VarInit):
+                pass
+
+        # 1. Forward Declarations (Prototypes)
+        for decl in node.decls:
+             if isinstance(decl, ast.FuncDef):
+                 self._declare_prototype(decl)
+             elif isinstance(decl, (ast.VarDecl, ast.VarInit)):
+                 self.visit(decl) # Create global vars immediately
+        
+        # 2. Function Bodies
+        for decl in node.decls:
+            if isinstance(decl, ast.FuncDef):
+                self._generate_body(decl)
+        
         return self.module
 
     def visit_VarDecl(self, node: ast.VarDecl):
@@ -123,13 +140,24 @@ class CodeGenerator:
             self.builder.store(val, alloca)
             self.func_symtab[node.name] = alloca
 
-    def visit_FuncDef(self, node: ast.FuncDef):
-        """Generates code for a function definition."""
+    def _declare_prototype(self, node: ast.FuncDef):
+        """Creates the function prototype and adds it to the module."""
         ret_type = self._get_llvm_type(node.return_type)
         param_types = [self._get_llvm_type(p.type_name) for p in node.params]
         func_ty = ir.FunctionType(ret_type, param_types)
+        # Avoid recreating if exists (should not happen in clean pass but good practice)
+        if node.name in self.module.globals:
+             return self.module.globals[node.name]
+             
         func = ir.Function(self.module, func_ty, name=node.name)
-        
+        return func
+
+    def _generate_body(self, node: ast.FuncDef):
+        """Generates the body of the function."""
+        func = self.module.globals.get(node.name)
+        if not func:
+            raise ValueError(f"Function {node.name} prototype not found during body generation.")
+
         # Setup entry block
         block = func.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(block)
@@ -156,6 +184,12 @@ class CodeGenerator:
             
         self.builder = None
         self.current_func = None
+
+    def visit_FuncDef(self, node: ast.FuncDef):
+        """Legacy visitor method - now handled via split passes in Program."""
+        if node.name not in self.module.globals:
+            self._declare_prototype(node)
+        self._generate_body(node)
 
     # ==========================
     # Statements
@@ -329,41 +363,51 @@ class CodeGenerator:
 
     def visit_InputStmt(self, node: ast.InputStmt):
         for arg in node.args:
-            # Unwrap UnaryExpr (e.g. #n)
-            while isinstance(arg, ast.UnaryExpr) and arg.operator == '#':
-                arg = arg.operand
+            # Determine if this argument is an input target (marked with '#')
+            # or a prompt (no '#').
+            is_input_target = False
+            curr_arg = arg
+            
+            # Unwrap '#' to find the underlying variable
+            while isinstance(curr_arg, ast.UnaryExpr) and curr_arg.operator == '#':
+                is_input_target = True
+                curr_arg = curr_arg.operand
 
-            if isinstance(arg, ast.Literal):
-                val = self.visit(arg)
+            if is_input_target:
+                # Input logic: Read into variable
+                if isinstance(curr_arg, ast.VarRef):
+                    ptr = self._lookup_var(curr_arg.name)
+                    val_type = ptr.type.pointee
+                    
+                    fmt = ""
+                    if val_type == ir.IntType(32):
+                        fmt = "%d"
+                    elif val_type == ir.DoubleType():
+                        fmt = "%lf" # scanf needs %lf for double
+                    elif val_type == ir.IntType(8).as_pointer():
+                        
+                        # Fix: Allocate buffer (malloc) for scanf to write into
+                        # We allocate 256 bytes
+                        size_const = ir.Constant(ir.IntType(64), 256)
+                        buf = self.builder.call(self.malloc, [size_const])
+                        
+                        fmt = "%255s" 
+                        fmt_ptr = self._get_global_string_ptr(fmt)
+                        self.builder.call(self.scanf, [fmt_ptr, buf])
+                        
+                        # Store the pointer to the buffer in the variable
+                        self.builder.store(buf, ptr)
+                        
+                        continue # Skip the default logic at bottom
+                    
+                    if fmt:
+                        fmt_ptr = self._get_global_string_ptr(fmt)
+                        self.builder.call(self.scanf, [fmt_ptr, ptr])
+            else:
+                # Output logic: Print prompt
+                # Handles Literals, FuncCalls, Vars, etc.
+                val = self.visit(curr_arg)
                 self._print_val(val)
-            elif isinstance(arg, ast.VarRef):
-                ptr = self._lookup_var(arg.name)
-                val_type = ptr.type.pointee
-                
-                fmt = ""
-                if val_type == ir.IntType(32):
-                    fmt = "%d"
-                elif val_type == ir.DoubleType():
-                    fmt = "%lf" # scanf needs %lf for double
-                elif val_type == ir.IntType(8).as_pointer():
-                    
-                    # Fix: Allocate buffer (malloc) for scanf to write into
-                    # We allocate 256 bytes
-                    size_const = ir.Constant(ir.IntType(64), 256)
-                    buf = self.builder.call(self.malloc, [size_const])
-                    
-                    fmt = "%255s" 
-                    fmt_ptr = self._get_global_string_ptr(fmt)
-                    self.builder.call(self.scanf, [fmt_ptr, buf])
-                    
-                    # Store the pointer to the buffer in the variable
-                    self.builder.store(buf, ptr)
-                    
-                    continue # Skip the default logic at bottom
-                
-                if fmt:
-                    fmt_ptr = self._get_global_string_ptr(fmt)
-                    self.builder.call(self.scanf, [fmt_ptr, ptr])
 
     def visit_ProcCallStmt(self, node: ast.ProcCallStmt):
         func = self.module.globals.get(node.name)

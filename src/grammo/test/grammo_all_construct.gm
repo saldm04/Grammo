@@ -1,6 +1,10 @@
 // =====================================================
-// Grammo "all-constructs" test program (semantically aligned)
-// Goal: build AST + pass semantic checks per project specs
+// Grammo "all-constructs" test program (syntactically + semantically aligned)
+// Goal: maximize grammar alternative coverage + exercise semantic rules
+// Notes:
+// - No-shadowing: all identifiers are unique across global/local scopes
+// - Blocks do NOT introduce a new scope (per project semantics)
+// - The test DOES NOT include `for(;;)` as requested
 // =====================================================
 
 // -----------------------------
@@ -31,6 +35,17 @@ func void -> log(string: lg_msg) {
     return;
 }
 
+// Procedure (void) with no parameters: covers proc_call with arg_list omitted
+func void -> ping() {
+    <<! "ping";
+    return;
+}
+
+// Function (int) with no parameters: covers func_call with arg_list omitted
+func int -> forty_two() {
+    return 42;
+}
+
 // Function (int): must return an int expression on all paths
 func int -> add(int: add_a, int: add_b) {
     var int: add_res;
@@ -39,7 +54,7 @@ func int -> add(int: add_a, int: add_b) {
 }
 
 // Function (real): exercises TIMES, DIV, MINUS, unary MINUS, parentheses
-func real-> mix(real: mx_x, real: mx_y) {
+func real -> mix(real: mx_x, real: mx_y) {
     return (mx_x * mx_y) / (mx_x - -mx_y);
 }
 
@@ -61,12 +76,52 @@ func bool -> complex_bool(bool: cb_p, bool: cb_q, int: cb_n) {
     return cb_r;
 }
 
-// Covers: for (;; ) with all optional parts omitted (terminates via return)
-func void -> cover_for_all_omitted() {
-    for (; ; ) {
-        <<! "cover_for_all_omitted reached";
-        return;
+// Non-void function that guarantees return on all paths using if/elif/else
+// (exercises semantic "all paths return" check on a non-void function)
+func int -> classify(int: cl_n) {
+    if (cl_n < 0) {
+        return -1;
     }
+    elif (cl_n == 0) {
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
+// -----------------------------
+// Coverage helpers (grammar alternatives)
+// -----------------------------
+
+// Covers multiple if-statement syntactic variants (all semantically valid)
+func void -> cover_if_variants(bool: iv_cond, int: iv_n) {
+    var int: iv_x;
+    iv_x = 0;
+
+    // Variant 1: if without elif and without else
+    if (iv_cond) {
+        iv_x = iv_x + 1;
+    }
+
+    // Variant 2: if with else but without elif
+    if (iv_n < 0) {
+        iv_x = iv_x + 10;
+    }
+    else {
+        iv_x = iv_x + 20;
+    }
+
+    // Variant 3: if with elif but without else
+    if (iv_n == 0) {
+        iv_x = iv_x + 100;
+    }
+    elif (iv_n <> 0) {
+        iv_x = iv_x + 200;
+    }
+
+    << "cover_if_variants iv_x=" # (iv_x);
+    return;
 }
 
 // Covers: for (init; ; update) with missing condition (terminates via return)
@@ -82,12 +137,57 @@ func void -> cover_for_missing_cond(int: fc_limit) {
     }
 }
 
+// Covers remaining for_stmt variants (excluding for(;;) by request)
+// Ensures termination without break by using conditions and/or return.
+func void -> cover_for_variants(int: fv_limit) {
+    var int: fv_i, fv_sum;
+    fv_i = 0;
+    fv_sum = 0;
+
+    // Variant A: for (; cond; update)  [init omitted]
+    fv_i = 0;
+    for (; fv_i < fv_limit; fv_i = fv_i + 1) {
+        fv_sum = fv_sum + fv_i;
+    }
+    << "forA sum=" # (fv_sum);
+
+    // Variant B: for (init; cond; )  [update omitted]
+    fv_sum = 0;
+    for (fv_i = 0; fv_i < fv_limit; ) {
+        fv_sum = fv_sum + fv_i;
+        fv_i = fv_i + 1; // manual update in body
+    }
+    << "forB sum=" # (fv_sum);
+
+    // Variant C: for (; cond; )  [init + update omitted]
+    fv_sum = 0;
+    fv_i = 0;
+    for (; fv_i < fv_limit; ) {
+        fv_sum = fv_sum + fv_i;
+        fv_i = fv_i + 1; // manual update in body
+    }
+    << "forC sum=" # (fv_sum);
+
+    // Variant D: for (init; ; )  [cond + update omitted]
+    // Condizione omessa trattata semanticamente come true; termina via return.
+    fv_i = 0;
+    fv_sum = 0;
+    for (fv_i = 0; ; ) {
+        if (fv_i >= fv_limit) {
+            <<! "forD done";
+            return;
+        }
+        fv_sum = fv_sum + fv_i;
+        fv_i = fv_i + 1; // manual update in body
+    }
+}
+
 // -----------------------------
 // Entry point
 // -----------------------------
 func void -> main() {
     // Local var_decl forms (typed list + const_expr assignment form)
-    var int: m_i, m_sum, m_tmp_int;
+    var int: m_i, m_sum, m_tmp_int, m_class;
     var real: m_acc, m_tmp_real;
     var bool: m_ok;
     var string: m_name, m_msg;
@@ -107,12 +207,28 @@ func void -> main() {
     // proc_call statement: only valid for void procedures
     log("Starting...");
     log(G_BANNER);
+    ping();
+
+    // Use non-void zero-arg call in expression context
+    m_tmp_int = forty_two();
+    << "forty_two=" # (m_tmp_int);
 
     // output_stmt with io_args mixing expr and HASH(LPAR expr RPAR)
     << "name=" # (m_name) "  i=" # (m_i) "  ok=" # (m_ok);
 
-    // input_stmt: prompt must be string; #(Expr) must be an assignable ID
+    // output_stmt with only #(expr) segments (no plain expr segments)
+    << # (m_name) # (m_i) # (m_ok);
+
+    // output_stmt with empty io_args (grammar alternative)
+    <<;
+
+    // input_stmt: prompt segments must be string; #(Expr) must be an assignable ID
     >> "Enter a value for i: " # (m_i);
+    <<! "m_i=" # (m_i);
+
+    // input_stmt with prompt as a string expression (still must type-check to string)
+    >> greet(m_name) ", enter a value: " # (m_sum);
+    <<! "m_sum=" # (m_sum);
 
     // Nested block statement (blocks do NOT create a new scope per specs)
     {
@@ -150,6 +266,9 @@ func void -> main() {
         << "ok=" # (m_ok);
     }
 
+    // Exercise additional if syntactic variants
+    cover_if_variants(m_ok, m_i);
+
     // while_stmt (condition must be bool)
     while ((m_i < 5) && m_ok) {
         m_sum = m_sum + m_i;
@@ -162,12 +281,18 @@ func void -> main() {
     for (m_i = 0; m_i < 3; m_i = m_i + 1) {
         m_tmp_int = add(m_i, 1);
         m_sum = m_sum + m_tmp_int;
-        << "for1 i=" # (m_i) " sum=" # (m_sum);
+        << "for_full i=" # (m_i) " sum=" # (m_sum);
     }
 
-    // for_stmt variants (missing condition; all omitted) covered via procedures
+    // for_stmt variant: missing condition
     cover_for_missing_cond(2);
-    cover_for_all_omitted();
+
+    // for_stmt remaining variants (excluding for(;;))
+    cover_for_variants(3);
+
+    // Non-void function return-path test usage
+    m_class = classify(m_i);
+    << "classify=" # (m_class);
 
     return;
 }

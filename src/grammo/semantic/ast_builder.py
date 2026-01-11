@@ -8,12 +8,25 @@ class ASTBuilder(Transformer):
     Methods match the grammar rules in the Lark file.
     """
 
+
+    def _extract_pos(self, items):
+        """Extracts the line and column from the given items."""
+        if not isinstance(items, list):
+            items = [items]
+        for item in items:
+            if hasattr(item, 'line') and getattr(item, 'line', 0) > 0:
+                return item.line, item.column
+            if isinstance(item, ast.Node) and item.line > 0:
+                return item.line, item.column
+        return 0, 0
+
     def start(self, items):
         """Returns the root of the AST."""
         return items[0]
 
     def program(self, items):
-        return ast.Program(decls=items)
+        line, col = self._extract_pos(items)
+        return ast.Program(decls=items, line=line, column=col)
 
     def top_decl(self, items):
         # items has 1 element: func_def or var_decl
@@ -45,7 +58,7 @@ class ASTBuilder(Transformer):
              if isinstance(items[5], list):
                  params = items[5]
 
-        return ast.FuncDef(name=func_name, return_type=ret_type, params=params, body=block)
+        return ast.FuncDef(name=func_name, return_type=ret_type, params=params, body=block, line=items[0].line, column=items[0].column)
 
     def return_type(self, items):
         # type | VOID_TYPE
@@ -55,7 +68,8 @@ class ASTBuilder(Transformer):
 
     def type(self, items):
         # INT_TYPE | ...
-        return ast.PrimitiveType(name=str(items[0]))
+        line, col = self._extract_pos(items)
+        return ast.PrimitiveType(name=str(items[0]), line=line, column=col)
 
     def param_list(self, items):
         # param (COMMA param)*
@@ -67,7 +81,8 @@ class ASTBuilder(Transformer):
         # 0: type
         # 1: COLON
         # 2: ID
-        return ast.Param(type_name=items[0].name, name=str(items[2]))
+        line, col = self._extract_pos(items)
+        return ast.Param(type_name=items[0].name, name=str(items[2]), line=line, column=col)
 
     def var_decl(self, items):
         """Handles variable declarations.
@@ -81,11 +96,13 @@ class ASTBuilder(Transformer):
         if isinstance(items[1], ast.Type):
             # Case 1: var <type>: <id_list>;
             # 1: type, 2: COLON, 3: id_list, 4: SEMI
-            return ast.VarDecl(type_name=items[1].name, names=items[3])
+            line, col = self._extract_pos(items)
+            return ast.VarDecl(type_name=items[1].name, names=items[3], line=line, column=col)
         else:
             # Case 2: var <name> = <const>;
             # 1: ID, 2: ASSIGN, 3: const_expr, 4: SEMI
-            return ast.VarInit(name=str(items[1]), value=items[3])
+            line, col = self._extract_pos(items)
+            return ast.VarInit(name=str(items[1]), value=items[3], line=line, column=col)
 
     def id_list(self, items):
         # ID (COMMA ID)*
@@ -97,25 +114,27 @@ class ASTBuilder(Transformer):
         token = items[0]
         val = token.value
         t_type = token.type
+        line, col = token.line, token.column
         
         if t_type == 'INT_CONST':
-            return ast.Literal(value=int(val), type_name='int')
+            return ast.Literal(value=int(val), type_name='int', line=line, column=col)
         elif t_type == 'REAL_CONST':
-            return ast.Literal(value=float(val), type_name='real')
+            return ast.Literal(value=float(val), type_name='real', line=line, column=col)
         elif t_type == 'STRING_CONST':
-            return ast.Literal(value=py_ast.literal_eval(val), type_name='string') # strip quotes via eval
+            return ast.Literal(value=py_ast.literal_eval(val), type_name='string', line=line, column=col)
         elif t_type == 'TRUE':
-            return ast.Literal(value=True, type_name='bool')
+            return ast.Literal(value=True, type_name='bool', line=line, column=col)
         elif t_type == 'FALSE':
-            return ast.Literal(value=False, type_name='bool')
-        return ast.Literal(value=val, type_name='unknown')
+            return ast.Literal(value=False, type_name='bool', line=line, column=col)
+        return ast.Literal(value=val, type_name='unknown', line=line, column=col)
 
     # Blocks & Stmts
     def block(self, items):
         # LBRACE stmt* RBRACE
         # Filter out braces
         stmts = [item for item in items if isinstance(item, ast.Stmt)]
-        return ast.Block(stmts=stmts)
+        line, col = self._extract_pos(items)
+        return ast.Block(stmts=stmts, line=line, column=col)
 
     def stmt(self, items):
         # Just returns the child
@@ -123,7 +142,8 @@ class ASTBuilder(Transformer):
 
     def assign_stmt(self, items):
         # ID ASSIGN expr
-        return ast.AssignStmt(name=str(items[0]), value=self._to_expr(items[2]))
+        line, col = self._extract_pos(items)
+        return ast.AssignStmt(name=str(items[0]), value=self._to_expr(items[2]), line=line, column=col)
 
     def proc_call(self, items):
         # ID LPAR arg_list? RPAR
@@ -132,7 +152,8 @@ class ASTBuilder(Transformer):
         if len(items) > 3: # ID LPAR args RPAR
              if isinstance(items[2], list):
                  args = items[2]
-        return ast.ProcCallStmt(name=name, args=args)
+        line, col = self._extract_pos(items)
+        return ast.ProcCallStmt(name=name, args=args, line=line, column=col)
         
     def arg_list(self, items):
          # expr (COMMA expr)*
@@ -147,20 +168,24 @@ class ASTBuilder(Transformer):
         val = None
         if len(items) > 1:
             val = self._to_expr(items[1])
-        return ast.ReturnStmt(value=val)
+        line, col = self._extract_pos(items)
+        return ast.ReturnStmt(value=val, line=line, column=col)
 
     # I/O
     def output_stmt(self, items):
         # OUT io_args
-        return ast.OutputStmt(is_newline=False, args=items[1])
+        line, col = self._extract_pos(items)
+        return ast.OutputStmt(is_newline=False, args=items[1], line=line, column=col)
         
     def outputln_stmt(self, items):
          # OUTLN io_args
-         return ast.OutputStmt(is_newline=True, args=items[1])
+         line, col = self._extract_pos(items)
+         return ast.OutputStmt(is_newline=True, args=items[1], line=line, column=col)
 
     def input_stmt(self, items):
         # IN io_args
-        return ast.InputStmt(args=items[1])
+        line, col = self._extract_pos(items)
+        return ast.InputStmt(args=items[1], line=line, column=col)
 
     def io_args(self, items):
         final_args = []
@@ -176,7 +201,8 @@ class ASTBuilder(Transformer):
                 is_rpar = hasattr(t3, "type") and t3.type == "RPAR"
                 if is_lpar and is_rpar:
                     expr = self._to_expr(mid)
-                    final_args.append(ast.UnaryExpr(operator="#", operand=expr))
+                    line, col = self._extract_pos([items[idx]])
+                    final_args.append(ast.UnaryExpr(operator="#", operand=expr, line=line, column=col))
                     idx += 4
                     continue  # importante
             # fallback: singolo expr
@@ -211,14 +237,16 @@ class ASTBuilder(Transformer):
              elif isinstance(item, ast.Block): # else_block returns Block
                  else_blk = item
         
-        return ast.IfStmt(condition=cond, then_block=then_blk, elifs=elifs, else_block=else_blk)
+        line, col = self._extract_pos(items)
+        return ast.IfStmt(condition=cond, then_block=then_blk, elifs=elifs, else_block=else_blk, line=line, column=col)
 
     def elif_list(self, items):
         return items # Already a list of ElifClause
 
     def elif_clause(self, items):
         # ELIF LPAR expr RPAR block
-        return ast.ElifClause(condition=items[2], block=items[4])
+        line, col = self._extract_pos(items)
+        return ast.ElifClause(condition=items[2], block=items[4], line=line, column=col)
 
     def else_block(self, items):
         # ELSE block
@@ -226,7 +254,8 @@ class ASTBuilder(Transformer):
 
     def while_stmt(self, items):
         # WHILE LPAR expr RPAR block
-        return ast.WhileStmt(condition=items[2], body=items[4])
+        line, col = self._extract_pos(items)
+        return ast.WhileStmt(condition=items[2], body=items[4], line=line, column=col)
 
     def for_stmt(self, items):
         """Handles for loops.
@@ -258,7 +287,8 @@ class ASTBuilder(Transformer):
             elif isinstance(item, ast.Block):
                 body = item
 
-        return ast.ForStmt(init=init, condition=cond, update=update, body=body)
+        line, col = self._extract_pos(items)
+        return ast.ForStmt(init=init, condition=cond, update=update, body=body, line=line, column=col)
 
     def for_init(self, items):
         return items[0]
@@ -279,16 +309,17 @@ class ASTBuilder(Transformer):
              # Check type
              t_type = item.type
              val = item.value
+             line, col = item.line, item.column
              if t_type == 'INT_CONST':
-                 return ast.Literal(value=int(val), type_name='int')
+                 return ast.Literal(value=int(val), type_name='int', line=line, column=col)
              elif t_type == 'REAL_CONST':
-                 return ast.Literal(value=float(val), type_name='real')
+                 return ast.Literal(value=float(val), type_name='real', line=line, column=col)
              elif t_type == 'STRING_CONST':
-                 return ast.Literal(value=py_ast.literal_eval(val), type_name='string')
+                 return ast.Literal(value=py_ast.literal_eval(val), type_name='string', line=line, column=col)
              elif t_type == 'TRUE':
-                 return ast.Literal(value=True, type_name='bool')
+                 return ast.Literal(value=True, type_name='bool', line=line, column=col)
              elif t_type == 'FALSE':
-                 return ast.Literal(value=False, type_name='bool')
+                 return ast.Literal(value=False, type_name='bool', line=line, column=col)
              
              # Fallback for operators or others if misused?
              # Only literals land here if unhandled.
@@ -300,7 +331,8 @@ class ASTBuilder(Transformer):
         # Ensure left/right are Expr
         left = self._to_expr(items[0])
         right = self._to_expr(items[2])
-        return ast.BinaryExpr(left=left, operator=str(items[1]), right=right)
+        line, col = self._extract_pos(items)
+        return ast.BinaryExpr(left=left, operator=str(items[1]), right=right, line=line, column=col)
 
     def or_expr(self, items):
         if len(items) == 1: return self._to_expr(items[0])
@@ -324,7 +356,8 @@ class ASTBuilder(Transformer):
     def unary_expr(self, items):
         if len(items) == 1: return self._to_expr(items[0])
         # OP expr
-        return ast.UnaryExpr(operator=str(items[0]), operand=self._to_expr(items[1]))
+        line, col = self._extract_pos(items)
+        return ast.UnaryExpr(operator=str(items[0]), operand=self._to_expr(items[1]), line=line, column=col)
 
     # Primary
     def primary(self, items):
@@ -343,7 +376,9 @@ class ASTBuilder(Transformer):
         if len(items) > 3:
              if isinstance(items[2], list):
                  args = items[2]
-        return ast.FuncCallExpr(name=name, args=args)
+        line, col = self._extract_pos(items)
+        return ast.FuncCallExpr(name=name, args=args, line=line, column=col)
 
     def var(self, items):
-        return ast.VarRef(name=str(items[0]))
+        line, col = self._extract_pos(items)
+        return ast.VarRef(name=str(items[0]), line=line, column=col)

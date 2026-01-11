@@ -1,12 +1,12 @@
 ; ModuleID = '<string>'
 source_filename = "<string>"
-target triple = "unknown-unknown-unknown"
+target triple = "x86_64-pc-windows-msvc"
 
-@str_-5815223497855098813 = constant [14 x i8] c"Inserisci n: \00"
-@str_9004869290475465944 = constant [3 x i8] c"%s\00"
-@str_6189097714515047384 = constant [3 x i8] c"%d\00"
-@str_2551435130023299489 = constant [9 x i8] c"fact(n)=\00"
-@str_-2118265822462567945 = local_unnamed_addr constant [2 x i8] c"\0A\00"
+@str_0 = constant [14 x i8] c"Inserisci n: \00"
+@str_1 = constant [3 x i8] c"%s\00"
+@str_2 = constant [3 x i8] c"%d\00"
+@str_3 = constant [9 x i8] c"fact(n)=\00"
+@str_4 = local_unnamed_addr constant [2 x i8] c"\0A\00"
 
 ; Function Attrs: nofree nounwind
 declare noundef i32 @printf(ptr nocapture noundef readonly, ...) local_unnamed_addr #0
@@ -84,8 +84,8 @@ define void @main() local_unnamed_addr #0 {
 entry:
   %n = alloca i32, align 4
   store i32 0, ptr %n, align 4
-  %.6 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_9004869290475465944, ptr nonnull @str_-5815223497855098813)
-  %.8 = call i32 (ptr, ...) @scanf(ptr nonnull @str_6189097714515047384, ptr nonnull %n)
+  %.6 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_0)
+  %.8 = call i32 (ptr, ...) @scanf(ptr nonnull @str_2, ptr nonnull %n)
   %load_n = load i32, ptr %n, align 4
   %.6.i = icmp slt i32 %load_n, 0
   br i1 %.6.i, label %fact.exit, label %for_cond.preheader.i
@@ -146,8 +146,8 @@ for_body.i:                                       ; preds = %for_body.i.preheade
 
 fact.exit:                                        ; preds = %for_body.i, %middle.block, %entry, %for_cond.preheader.i
   %common.ret.op.i = phi i32 [ 0, %entry ], [ 1, %for_cond.preheader.i ], [ %10, %middle.block ], [ %.13.i, %for_body.i ]
-  %.13 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_9004869290475465944, ptr nonnull @str_2551435130023299489)
-  %.15 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_6189097714515047384, i32 %common.ret.op.i)
+  %.13 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_3)
+  %.15 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_2, i32 %common.ret.op.i)
   %putchar = call i32 @putchar(i32 10)
   ret void
 }

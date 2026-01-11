@@ -1,0 +1,104 @@
+// =====================================================
+// Grammo demo: Utilità numeriche (gcd, primalità) senza modulo
+// Mostra: while, if/elif/else, bool logic, funzioni non-void, chiamate tipate
+// Nota: la divisibilità è calcolata con sottrazioni ripetute (demo su input piccoli).
+// =====================================================
+
+func bool -> divisible(int: dv_n, int: dv_d) {
+    var int: dv_t;
+
+    if (dv_d <= 0) {
+        return false;
+    }
+
+    dv_t = dv_n;
+    if (dv_t < 0) {
+        dv_t = -dv_t;
+    }
+
+    while (dv_t > 0) {
+        dv_t = dv_t - dv_d;
+    }
+
+    if (dv_t == 0) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+func bool -> is_prime(int: pr_n) {
+    var int: pr_d;
+
+    if (pr_n <= 1) {
+        return false;
+    }
+
+    pr_d = 2;
+    while ((pr_d * pr_d) <= pr_n) {
+        if (divisible(pr_n, pr_d)) {
+            return false;
+        }
+        pr_d = pr_d + 1;
+    }
+
+    return true;
+}
+
+func int -> gcd(int: gd_a, int: gd_b) {
+    var int: gd_x, gd_y;
+
+    gd_x = gd_a;
+    if (gd_x < 0) {
+        gd_x = -gd_x;
+    }
+
+    gd_y = gd_b;
+    if (gd_y < 0) {
+        gd_y = -gd_y;
+    }
+
+    if (gd_x == 0) {
+        return gd_y;
+    }
+    elif (gd_y == 0) {
+        return gd_x;
+    }
+    else {
+        // algoritmo per sottrazioni (termina per interi positivi)
+        while (gd_x <> gd_y) {
+            if (gd_x > gd_y) {
+                gd_x = gd_x - gd_y;
+            }
+            else {
+                gd_y = gd_y - gd_x;
+            }
+        }
+        return gd_x;
+    }
+}
+
+func void -> main() {
+    var int: m_n, m_a, m_b, m_g;
+    var bool: m_p;
+
+    <<! "Demo numeri: primalita' e MCD (gcd)";
+
+    >> "Numero per primalita' (int >= 0, piccolo): " # (m_n);
+    m_p = is_prime(m_n);
+
+    if (m_p) {
+        <<! "Il numero e' primo.";
+    }
+    else {
+        <<! "Il numero NON e' primo.";
+    }
+
+    >> "A (int): " # (m_a);
+    >> "B (int): " # (m_b);
+    m_g = gcd(m_a, m_b);
+
+    <<! "gcd(A,B)=" # (m_g);
+    return;
+}

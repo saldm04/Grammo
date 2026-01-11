@@ -1,0 +1,95 @@
+# bank_menu.gm — Mini “conto corrente” a menu
+# Cosa fa:
+#   - Avvia un menu interattivo (mostra saldo / deposita / preleva / esci) e aggiorna un saldo in real.
+# Costrutti / caratteristiche coperte:
+#   - Dichiarazioni globali con inizializzazione (var ID = const_expr)
+#   - Procedure void (show_menu) + chiamate come statement (proc_call)
+#   - Funzioni non-void (deposit/withdraw) con return su tutti i cammini
+#   - while, if/elif/else annidati, confronti e logica booleana
+#   - Input/output: >> con "#(var)" e <<!/<< con "#(expr)"
+#   - Type checking: operazioni real, confronti real, assegnamenti e call tipate
+python -m src.grammo.main src/grammo/test/input/bank_menu.gm -o src/grammo/test/output-llvm/bank_menu.ll -a -O3
+
+
+# compound_interest.gm — Interessi composti (tabella anno per anno)
+# Cosa fa:
+#   - Calcola il saldo anno per anno applicando un tasso percentuale e stampa l’evoluzione.
+# Costrutti / caratteristiche coperte:
+#   - Funzioni real (apply_interest) e composizione di espressioni aritmetiche su real
+#   - for (init; cond; update) con stampa progressiva dei risultati
+#   - if con return anticipato (validazione input) + if semplice (tasso nullo)
+#   - Input/output con stringhe + "#(expr)" per formattare output “tabellare”
+#   - Type checking e promozione int->real (es. costanti 1.0/100.0) per evitare ambiguità
+python -m src.grammo.main src/grammo/test/input/compound_interest.gm -o src/grammo/test/output-llvm/compound_interest.ll -a -O3
+
+
+# number_tools.gm — Primalità e MCD (gcd) senza operatori avanzati
+# Cosa fa:
+#   - Verifica se un numero è primo e calcola il massimo comune divisore tra due interi.
+#   - Implementazioni basate su while e sottrazioni ripetute (nessun %, nessun array).
+# Costrutti / caratteristiche coperte:
+#   - Funzioni bool e int con return-path checking
+#   - while annidati + if/elif/else, confronti ==, <>, <=, >, ecc.
+#   - Operatori unari e gestione segno (x = -x)
+#   - Chiamate di funzione dentro condizioni (divisible(...) usata da is_prime)
+#   - Semantica: tipizzazione rigorosa (condizioni booleane, parametri/return coerenti)
+python -m src.grammo.main src/grammo/test/input/number_tools.gm -o src/grammo/test/output-llvm/number_tools.ll -a -O3
+
+
+# stats_mean_minmax.gm — Statistiche (somma, media, min, max) su N valori
+# Cosa fa:
+#   - Legge N valori real, calcola somma, media, minimo e massimo, poi stampa i risultati.
+# Costrutti / caratteristiche coperte:
+#   - if/else con return anticipato (gestione errore n <= 0)
+#   - for con inizializzazione “da 2 a N” e aggiornamenti nel body
+#   - if “multipli” separati (due if distinti per min/max) senza else
+#   - Promozione int->real esplicita tramite (n * 1.0) per calcolo media in real
+#   - Input/output con prompt e "#(var)" + output formattato con "#(expr)"
+python -m src.grammo.main src/grammo/test/input/stats_mean_minmax.gm -o src/grammo/test/output-llvm/stats_mean_minmax.ll -a -O3
+
+
+# string_demo.gm — Demo stringhe (concatenazione e “repeat”)
+# Cosa fa:
+#   - Chiede un nome e una larghezza, costruisce una “cornice” testuale e messaggi concatenati.
+#   - Implementa repeat(s, n) tramite ciclo for e concatenazione.
+# Costrutti / caratteristiche coperte:
+#   - Tipo string e operatore PLUS su string (concatenazione)
+#   - Funzioni string (repeat, surround) e call in contesto di espressione
+#   - for per costruire una stringa iterativamente
+#   - Output con mix di stringhe ed espressioni "#(expr)"
+#   - Input su string e int con "#(var)" e gestione coerente dei tipi
+python -m src.grammo.main src/grammo/test/input/string_demo.gm -o src/grammo/test/output-llvm/string_demo.ll -a -O3
+
+
+# fibonacci.gm — Fibonacci iterativo
+# Cosa fa:
+#   - Calcola fib(n) in modo iterativo (senza ricorsione), con aggiornamento di accumulatori.
+# Costrutti / caratteristiche coperte:
+#   - Funzione int con if/elif/else e return sui cammini
+#   - while con condizione booleana composta e aggiornamenti in loop
+#   - Operazioni aritmetiche int e assegnamenti ripetuti
+#   - Input/output con "#(var)" e stampa risultato
+python -m src.grammo.main src/grammo/test/input/fibonacci.gm -o src/grammo/test/output-llvm/fibonacci.ll -a -O3
+
+
+# factorial.gm — Fattoriale con for
+# Cosa fa:
+#   - Calcola n! usando un ciclo for; gestisce n negativo ritornando 0.
+# Costrutti / caratteristiche coperte:
+#   - Funzione int con if/else e return anticipato per caso errore
+#   - for con inizializzazione, condizione (<=) e update (+1)
+#   - Moltiplicazioni int e accumulatore
+#   - Input/output con "#(var)" e stampa del risultato
+python -m src.grammo.main src/grammo/test/input/factorial.gm -o src/grammo/test/output-llvm/factorial.ll -a -O3
+
+
+# calculator.gm — Calcolatrice su real con selettore operazione (int)
+# Cosa fa:
+#   - Legge op (1..4) e due real, applica l’operazione; gestisce divisione per zero.
+# Costrutti / caratteristiche coperte:
+#   - if/elif/else annidati (incl. if interno per b == 0.0)
+#   - Funzione real con return su tutti i cammini
+#   - Operazioni +, -, *, / su real e confronti real (== 0.0)
+#   - I/O con prompt e "#(var)" + output con "#(expr)"
+#   - Semantica: coerenza tipi tra op int, parametri real, condizioni booleane
+python -m src.grammo.main src/grammo/test/input/calculator.gm -o src/grammo/test/output-llvm/calculator.ll -a -O3

@@ -90,7 +90,7 @@ Il compilatore è utilizzabile da riga di comando tramite `main.py`.
 ### Sintassi
 
 ```
-python src/grammo/main.py FILE_SORGENTE [OPZIONI]
+python -m src.grammo.main FILE_SORGENTE [OPZIONI]
 ```
 
 ### Opzioni
@@ -110,7 +110,7 @@ python src/grammo/main.py FILE_SORGENTE [OPZIONI]
 ### Esempio
 
 ```
-python src/grammo/main.py src/grammo/test/input/factorial.gm --ast -o output.ll
+python -m src.grammo.main src/grammo/test/input/factorial.gm -o out.ll -a
 ```
 
 ## Limitazioni note

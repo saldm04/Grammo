@@ -1,0 +1,46 @@
+// =====================================================
+// Grammo demo: Statistiche (somma, media, min, max) senza array
+// Mostra: for, if, input/output con prompt + #(target), promozione int->real
+// =====================================================
+
+func void -> main() {
+    var int: m_n, m_i;
+    var real: m_x, m_sum, m_mean, m_minv, m_maxv;
+
+    <<! "Statistiche: media/min/max";
+    >> "Quanti valori (int > 0)? " # (m_n);
+
+    if (m_n <= 0) {
+        <<! "Errore: n deve essere > 0";
+        return;
+    }
+    else {
+        // Primo valore per inizializzare min/max
+        >> "Valore 1 (real): " # (m_x);
+        m_sum = m_x;
+        m_minv = m_x;
+        m_maxv = m_x;
+
+        // Da 2 a n
+        for (m_i = 2; m_i <= m_n; m_i = m_i + 1) {
+            >> "Valore (real): " # (m_x);
+            m_sum = m_sum + m_x;
+
+            if (m_x < m_minv) {
+                m_minv = m_x;
+            }
+            if (m_x > m_maxv) {
+                m_maxv = m_x;
+            }
+        }
+
+        // promozione: (m_n * 1.0) -> real
+        m_mean = m_sum / (m_n * 1.0);
+
+        <<! "Somma=" # (m_sum);
+        <<! "Media=" # (m_mean);
+        <<! "Min=" # (m_minv) "  Max=" # (m_maxv);
+
+        return;
+    }
+}
