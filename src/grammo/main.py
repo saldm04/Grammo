@@ -90,7 +90,6 @@ def main():
         
         logging.info(f"Optimizing (Level {args.opt_level})...")
         optimizer = GrammoOptimizer()
-        # optimize returns a ModuleRef
         optimized_mod_ref = optimizer.optimize(llvm_module, speed_level=args.opt_level)
         
         if args.output:

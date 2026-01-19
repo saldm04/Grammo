@@ -385,7 +385,15 @@ class CodeGenerator:
 
     def visit_ProcCallStmt(self, node: ast.ProcCallStmt):
         func = self.module.globals.get(node.name)
-        args_vals = [self.visit(a) for a in node.args]
+        args_vals = []
+        for i, arg in enumerate(node.args):
+            val = self.visit(arg)
+            if i < len(func.args):
+                 expected_type = func.args[i].type
+                 if expected_type == ir.DoubleType() and val.type == ir.IntType(32):
+                     val = self.builder.sitofp(val, ir.DoubleType())
+            args_vals.append(val)
+            
         self.builder.call(func, args_vals)
 
     # ==========================
