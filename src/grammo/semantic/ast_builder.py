@@ -7,8 +7,6 @@ class ASTBuilder(Transformer):
 
     Methods match the grammar rules in the Lark file.
     """
-
-
     def _extract_pos(self, items):
         """Extracts the line and column from the given items."""
         if not isinstance(items, list):
@@ -29,7 +27,6 @@ class ASTBuilder(Transformer):
         return ast.Program(decls=items, line=line, column=col)
 
     def top_decl(self, items):
-        # items has 1 element: func_def or var_decl
         return items[0]
 
     # Declarations
@@ -137,7 +134,6 @@ class ASTBuilder(Transformer):
         return ast.Block(stmts=stmts, line=line, column=col)
 
     def stmt(self, items):
-        # Just returns the child
         return items[0]
 
     def assign_stmt(self, items):
@@ -225,7 +221,6 @@ class ASTBuilder(Transformer):
         # 5: elif_list (optional)
         # 6: else_block (optional)
         
-        # We need to find the parts.
         cond = items[2]
         then_blk = items[4]
         elifs = []
@@ -262,7 +257,6 @@ class ASTBuilder(Transformer):
 
         Rule: FOR LPAR for_init? SEMI expr? SEMI for_update? RPAR block
         """
-        # We categorize children based on their type and position relative to semicolons.
         init = None
         cond = None
         update = None
@@ -299,10 +293,7 @@ class ASTBuilder(Transformer):
     def atomic_expr(self, items):
         return items[0]
     
-    # Precedence levels
-    # Since ?expr: or_expr, etc., Transformer might skip the wrapper if it has one child.
-    # If it has 3 children (left op right), we handle it.
-    
+    # Precedence levels - inlining
     def _to_expr(self, item):
         if hasattr(item, 'type'): # Token
              # Wrap in literal using logic from const_expr
@@ -321,8 +312,6 @@ class ASTBuilder(Transformer):
              elif t_type == 'FALSE':
                  return ast.Literal(value=False, type_name='bool', line=line, column=col)
              
-             # Fallback for operators or others if misused?
-             # Only literals land here if unhandled.
              return item 
         return item
 
@@ -364,9 +353,6 @@ class ASTBuilder(Transformer):
         # Handle ( expr )
         if len(items) == 3 and getattr(items[0], 'type', None) == 'LPAR':
             return self._to_expr(items[1]) 
-        # Fallback for literals if they land here?
-        # But ?primary implies literals are inlined. 
-        # If a literal comes here, it is 1 item.
         return self._to_expr(items[0])
 
     def func_call(self, items):

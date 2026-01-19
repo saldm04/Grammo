@@ -23,17 +23,23 @@ func real -> calc(real: a, real: b, int: op) {
 
 func void -> main() {
     var real: a, b, res;
-    var int: op;
+    var int: op, cont;
 
     <<! "Calcolatrice semplice";
     <<! "1=+  2=-  3=*  4=/";
 
-    >> "Operazione: " # (op);
-    >> "A: " # (a);
-    >> "B: " # (b);
+    cont = 1;
 
-    res = calc(a, b, op);
-    <<! "Risultato=" # (res);
+    while (cont == 1) {
+        >> "Operazione: " # (op);
+        >> "A: " # (a);
+        >> "B: " # (b);
+
+        res = calc(a, b, op);
+        <<! "Risultato=" # (res);
+
+        >> "Vuoi fare un'altra operazione? (1=si, 0=no): " # (cont);
+    }
 
     return;
 }

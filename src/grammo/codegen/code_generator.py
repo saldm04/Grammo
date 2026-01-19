@@ -16,7 +16,7 @@ class CodeGenerator:
         self.module = ir.Module(name="grammo_module")
         self.module.triple = binding.get_default_triple()
         self.builder = None
-        self.func_symtab = {}  # Maps variable names to ir.Value (allocas)
+        self.func_symtab = {}
         self.current_func = None
         
         # Standard library declarations
@@ -26,7 +26,7 @@ class CodeGenerator:
 
         # String constants management
         self.string_counter = 0
-        self.string_literals = {} # Map content -> GlobalVariable
+        self.string_literals = {}
 
         # Type Mappings
         self.type_map = {
@@ -102,11 +102,8 @@ class CodeGenerator:
 
     def visit_VarDecl(self, node: ast.VarDecl):
         """Generates code for a variable declaration."""
-        # Global variable declaration (if strictly global context)
-        # OR local if inside function.
         llvm_type = self._get_llvm_type(node.type_name)
-        
-        # Determine initializer
+
         if node.type_name == 'real':
             init_const = ir.Constant(llvm_type, 0.0)
         elif node.type_name == 'string':
@@ -115,12 +112,10 @@ class CodeGenerator:
             init_const = ir.Constant(llvm_type, 0)
 
         if self.builder is None:
-            # Global variables
             for name in node.names:
                 gvar = ir.GlobalVariable(self.module, llvm_type, name=name)
                 gvar.initializer = init_const
         else:
-            # Local variables
             for name in node.names:
                 alloca = self.builder.alloca(llvm_type, name=name)
                 self.func_symtab[name] = alloca
@@ -128,14 +123,12 @@ class CodeGenerator:
 
     def visit_VarInit(self, node: ast.VarInit):
         """Generates code for a variable initialization."""
-        # var <name> = <const>;
-        val = self.visit(node.value) # Should be a constant literal
+        val = self.visit(node.value)
         
         if self.builder is None:
              gvar = ir.GlobalVariable(self.module, val.type, name=node.name)
              gvar.initializer = val
         else:
-            # Local constant? Treat as var.
             alloca = self.builder.alloca(val.type, name=node.name)
             self.builder.store(val, alloca)
             self.func_symtab[node.name] = alloca
@@ -145,7 +138,7 @@ class CodeGenerator:
         ret_type = self._get_llvm_type(node.return_type)
         param_types = [self._get_llvm_type(p.type_name) for p in node.params]
         func_ty = ir.FunctionType(ret_type, param_types)
-        # Avoid recreating if exists (should not happen in clean pass but good practice)
+
         if node.name in self.module.globals:
              return self.module.globals[node.name]
              
@@ -158,24 +151,19 @@ class CodeGenerator:
         if not func:
             raise ValueError(f"Function {node.name} prototype not found during body generation.")
 
-        # Setup entry block
         block = func.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(block)
         self.current_func = func
-        self.func_symtab = {} # Reset local symbol table
-        
-        # Arg processing
+        self.func_symtab = {}
+
         for i, arg in enumerate(func.args):
             arg.name = node.params[i].name
-            # Allocate space for arg to be mutable
             alloca = self.builder.alloca(arg.type, name=arg.name)
             self.builder.store(arg, alloca)
             self.func_symtab[arg.name] = alloca
 
-        # Process function body (Block)
         self.visit(node.body)
         
-        # Add implicit return void if missing
         if not self.builder.block.is_terminated:
             if node.return_type == 'void':
                 self.builder.ret_void()
@@ -199,13 +187,12 @@ class CodeGenerator:
         for stmt in node.stmts:
             self.visit(stmt)
             if self.builder.block.is_terminated:
-                break # Unreachable code after this
+                break
 
     def visit_AssignStmt(self, node: ast.AssignStmt):
         val = self.visit(node.value)
         ptr = self._lookup_var(node.name)
-        
-        # Handle implicit casting (int -> real)
+
         if ptr.type.pointee == ir.DoubleType() and val.type == ir.IntType(32):
             val = self.builder.sitofp(val, ir.DoubleType())
             
@@ -214,7 +201,7 @@ class CodeGenerator:
     def visit_ReturnStmt(self, node: ast.ReturnStmt):
         if node.value:
             val = self.visit(node.value)
-             # Handle implicit casting (int -> real) for return
+
             if self.current_func.function_type.return_type == ir.DoubleType() and val.type == ir.IntType(32):
                 val = self.builder.sitofp(val, ir.DoubleType())
             self.builder.ret(val)
@@ -242,7 +229,7 @@ class CodeGenerator:
             jumps_to_merge.append(self.builder.block)
 
         # 4. Populate Next Block (Elifs / Else)
-        elif_branches_to_patch = [] # List of (block, cond, true_dest) to jump to merge on false
+        elif_branches_to_patch = []
 
         if next_block:
             curr_bb = next_block
@@ -261,7 +248,6 @@ class CodeGenerator:
                     self.builder.cbranch(elif_cond, elif_then_bb, elif_next_bb)
                     curr_bb = elif_next_bb
                 else:
-                    # Last elif, no else -> false jumps to merge
                     elif_branches_to_patch.append((self.builder.block, elif_cond, elif_then_bb))
                 
                 # Elif Body
@@ -282,19 +268,16 @@ class CodeGenerator:
         
         # 6. Apply Patches
         
-        # Patch Start Block
         self.builder.position_at_end(start_block)
         if next_block:
             self.builder.cbranch(cond, then_block, next_block)
         else:
             self.builder.cbranch(cond, then_block, merge_block)
             
-        # Patch Elif False Branches
         for blk, e_cond, true_dest in elif_branches_to_patch:
             self.builder.position_at_end(blk)
             self.builder.cbranch(e_cond, true_dest, merge_block)
             
-        # Patch Jumps to Merge
         for blk in jumps_to_merge:
             self.builder.position_at_end(blk)
             self.builder.branch(merge_block)
@@ -363,18 +346,14 @@ class CodeGenerator:
 
     def visit_InputStmt(self, node: ast.InputStmt):
         for arg in node.args:
-            # Determine if this argument is an input target (marked with '#')
-            # or a prompt (no '#').
             is_input_target = False
             curr_arg = arg
             
-            # Unwrap '#' to find the underlying variable
             while isinstance(curr_arg, ast.UnaryExpr) and curr_arg.operator == '#':
                 is_input_target = True
                 curr_arg = curr_arg.operand
 
             if is_input_target:
-                # Input logic: Read into variable
                 if isinstance(curr_arg, ast.VarRef):
                     ptr = self._lookup_var(curr_arg.name)
                     val_type = ptr.type.pointee
@@ -383,11 +362,9 @@ class CodeGenerator:
                     if val_type == ir.IntType(32):
                         fmt = "%d"
                     elif val_type == ir.DoubleType():
-                        fmt = "%lf" # scanf needs %lf for double
+                        fmt = "%lf"
                     elif val_type == ir.IntType(8).as_pointer():
                         
-                        # Fix: Allocate buffer (malloc) for scanf to write into
-                        # We allocate 256 bytes
                         size_const = ir.Constant(ir.IntType(64), 256)
                         buf = self.builder.call(self.malloc, [size_const])
                         
@@ -395,17 +372,14 @@ class CodeGenerator:
                         fmt_ptr = self._get_global_string_ptr(fmt)
                         self.builder.call(self.scanf, [fmt_ptr, buf])
                         
-                        # Store the pointer to the buffer in the variable
                         self.builder.store(buf, ptr)
                         
-                        continue # Skip the default logic at bottom
+                        continue
                     
                     if fmt:
                         fmt_ptr = self._get_global_string_ptr(fmt)
                         self.builder.call(self.scanf, [fmt_ptr, ptr])
             else:
-                # Output logic: Print prompt
-                # Handles Literals, FuncCalls, Vars, etc.
                 val = self.visit(curr_arg)
                 self._print_val(val)
 
@@ -460,16 +434,12 @@ class CodeGenerator:
             if op == '>':  return self.builder.fcmp_ordered('>', lhs, rhs)
             if op == '>=': return self.builder.fcmp_ordered('>=', lhs, rhs)
         else:
-            # Strings?
-            # Check for pointers (i8*) using loose string check
-            # We check if they are pointers.
-            is_lhs_ptr = '*' in str(lhs.type) or isinstance(lhs.type, ir.PointerType) # Paranoid
+            is_lhs_ptr = '*' in str(lhs.type) or isinstance(lhs.type, ir.PointerType)
             is_rhs_ptr = '*' in str(rhs.type) or isinstance(rhs.type, ir.PointerType)
             
             if is_lhs_ptr and is_rhs_ptr:
                  if op == '+':
                      # String concatenation
-                     # new_str = malloc(strlen(lhs) + strlen(rhs) + 1)
                      len1 = self.builder.call(self.strlen, [lhs])
                      len2 = self.builder.call(self.strlen, [rhs])
                      total_len = self.builder.add(len1, len2)
@@ -512,7 +482,6 @@ class CodeGenerator:
         args_vals = []
         for i, arg in enumerate(node.args):
             val = self.visit(arg)
-            # Check implicit cast against function signature
             if i < len(func.args):
                  expected_type = func.args[i].type
                  if expected_type == ir.DoubleType() and val.type == ir.IntType(32):
@@ -531,15 +500,12 @@ class CodeGenerator:
         return self.module.globals.get(name)
 
     def _get_global_string_ptr(self, s):
-        # Dedup strings using a map
         if s in self.string_literals:
             gvar = self.string_literals[s]
             if self.builder:
                 return self.builder.bitcast(gvar, ir.IntType(8).as_pointer())
             return gvar.bitcast(ir.IntType(8).as_pointer())
 
-        # Escape string
-        # Simply byte array
         b = bytearray(s.encode("utf8"))
         b.append(0)
         c = ir.Constant(ir.ArrayType(ir.IntType(8), len(b)), b)
@@ -567,12 +533,9 @@ class CodeGenerator:
             fmt_ptr = self._get_global_string_ptr(fmt)
             self.builder.call(self.printf, [fmt_ptr, val])
         elif val.type == ir.IntType(1):
-             # Bool -> print 0 or 1? Or true/false?
-             # Let's print true/false
              pass 
              fmt = "%d" 
              fmt_ptr = self._get_global_string_ptr(fmt)
-             # Zero extend for printf
              val_zext = self.builder.zext(val, ir.IntType(32))
              self.builder.call(self.printf, [fmt_ptr, val_zext])
         elif isinstance(val.type, ir.PointerType):

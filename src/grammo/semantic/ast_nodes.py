@@ -34,10 +34,6 @@ class PrimitiveType(Type):
     """Represents a primitive type (e.g., int, bool)."""
     pass
 
-# We can instantiate these for easy use in comparisons, 
-# or use them as factories from the parser.
-# e.g. INT_TYPE = PrimitiveType("int")
-
 # ==========================================
 # Expressions
 # ==========================================
@@ -56,7 +52,7 @@ class Literal(Expr):
         type_name: The type of the literal ('int', 'real', 'string', 'bool').
     """
     value: Any
-    type_name: str  # 'int', 'real', 'string', 'bool'
+    type_name: str
 
 @dataclass(kw_only=True)
 class VarRef(Expr):
@@ -163,8 +159,6 @@ class IfStmt(Stmt):
     """
     condition: Expr
     then_block: Block
-    # Elifs are handled as nested Ifs or list of (cond, block) pairs?
-    # To match grammar structure (elif_list):
     elifs: List['ElifClause'] = field(default_factory=list)
     else_block: Optional[Block] = None
 
@@ -253,7 +247,7 @@ class VarInit(Declaration):
         value: The initial value (must be a literal/const).
     """
     name: str
-    value: Literal # Grammar restricts this to Const
+    value: Literal
 
 @dataclass(kw_only=True)
 class Param(Node):
@@ -277,7 +271,7 @@ class FuncDef(Declaration):
         body: The function body block.
     """
     name: str
-    return_type: str # 'void' or specific type
+    return_type: str
     params: List[Param]
     body: Block
 

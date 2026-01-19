@@ -22,7 +22,6 @@ class JITExecutor:
         Raises:
             RuntimeError: If the 'main' function cannot be found in the module.
         """
-        # Create a target machine
         target = llvm.Target.from_default_triple()
         target_machine = target.create_target_machine()
         
@@ -39,7 +38,6 @@ class JITExecutor:
                 else:
                     libc = ctypes.CDLL(None)
         except OSError:
-             # Fallback or strict error
              libc = None
         
         if libc:
@@ -49,22 +47,13 @@ class JITExecutor:
                     addr = ctypes.cast(func, ctypes.c_void_p).value
                     llvm.add_symbol(name, addr)
 
-        # Create MCJIT execution engine
-        # We need a backing module for the engine.
-        # Note: create_mcjit_compiler takes (module, target_machine)
-        # It transfers ownership of the module to the engine.
         engine = llvm.create_mcjit_compiler(module_ref, target_machine)
         engine.finalize_object()
         
-        # Look up 'main' function
         func_ptr = engine.get_function_address("main")
         if not func_ptr:
             raise RuntimeError("Could not find 'main' function in the module.")
             
-        # Cast to C function
-        # void main()
         c_func_type = ctypes.CFUNCTYPE(None)
         c_func = c_func_type(func_ptr)
-        
-        # Execute
         c_func()

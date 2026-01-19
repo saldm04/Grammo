@@ -20,12 +20,10 @@ def load_parser():
     Returns:
         Lark: The initialized Lark parser instance.
     """
-    # Grammar is in lex_syntax/grammo.lark relative to src/grammo/
     base_dir = Path(__file__).parent
     grammar_path = base_dir / "lex_syntax" / "grammo.lark"
     
     if not grammar_path.exists():
-        # Fallback if running layout is different
         grammar_path = Path("grammo.lark")
     
     if not grammar_path.exists():
@@ -46,11 +44,10 @@ def load_parser():
 
 def main():
     """Main execution entry point."""
-    # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(levelname)s: %(message)s',
-        stream=sys.stdout # Ensure it prints to CLI
+        stream=sys.stdout
     )
 
     parser = argparse.ArgumentParser(description="Grammo Compiler and Executor")
@@ -70,7 +67,7 @@ def main():
     logging.info(f"Parsing {filename}...")
     try:
         src = path.read_text(encoding="utf-8")
-        parser_inst = load_parser() # Renamed to avoid shadowing
+        parser_inst = load_parser()
         tree = parser_inst.parse(src)
         logging.info("Parsing successful.")
 

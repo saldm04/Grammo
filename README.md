@@ -12,8 +12,8 @@ La struttura del progetto riflette le principali fasi di compilazione:
 
 ```
 lex_syntax/        # grammatica Lark e parsing
-ast_builder.py    # costruzione dell’AST
-semantic/         # analisi semantica e type checking
+semantic/ast_builder.py    # costruzione dell’AST
+semantic/*         # analisi semantica e type checking
 codegen/          # generazione LLVM IR, ottimizzazione e JIT
 main.py           # entry point CLI
 test/             # programmi di esempio (.gm)

@@ -14,6 +14,7 @@ target triple = "x86_64-pc-windows-msvc"
 @str_9 = constant [4 x i8] c"B: \00"
 @str_10 = constant [11 x i8] c"Risultato=\00"
 @str_11 = constant [5 x i8] c"%.6f\00"
+@str_12 = constant [46 x i8] c"Vuoi fare un'altra operazione? (1=si, 0=no): \00"
 
 ; Function Attrs: nofree nounwind
 declare noundef i32 @printf(ptr nocapture noundef readonly, ...) local_unnamed_addr #0
@@ -69,16 +70,21 @@ entry:
   store double 0.000000e+00, ptr %b, align 8
   %op = alloca i32, align 4
   store i32 0, ptr %op, align 4
-  %.8 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_3)
+  %cont = alloca i32, align 4
+  %.9 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_3)
   %putchar = tail call i32 @putchar(i32 10)
-  %.14 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_4)
+  %.15 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_4)
   %putchar1 = tail call i32 @putchar(i32 10)
-  %.20 = tail call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_5)
-  %.22 = call i32 (ptr, ...) @scanf(ptr nonnull @str_6, ptr nonnull %op)
-  %.25 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_7)
-  %.27 = call i32 (ptr, ...) @scanf(ptr nonnull @str_8, ptr nonnull %a)
-  %.30 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_9)
-  %.32 = call i32 (ptr, ...) @scanf(ptr nonnull @str_8, ptr nonnull %b)
+  store i32 1, ptr %cont, align 4
+  br label %while_body
+
+while_body:                                       ; preds = %entry, %calc.exit
+  %.25 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_5)
+  %.27 = call i32 (ptr, ...) @scanf(ptr nonnull @str_6, ptr nonnull %op)
+  %.30 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_7)
+  %.32 = call i32 (ptr, ...) @scanf(ptr nonnull @str_8, ptr nonnull %a)
+  %.35 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_9)
+  %.37 = call i32 (ptr, ...) @scanf(ptr nonnull @str_8, ptr nonnull %b)
   %load_a = load double, ptr %a, align 8
   %load_b = load double, ptr %b, align 8
   %load_op = load i32, ptr %op, align 4
@@ -88,19 +94,19 @@ entry:
     i32 3, label %elif_1_then.i
   ]
 
-if_then.i:                                        ; preds = %entry
+if_then.i:                                        ; preds = %while_body
   %.9.i = fadd double %load_a, %load_b
   br label %calc.exit
 
-elif_0_then.i:                                    ; preds = %entry
+elif_0_then.i:                                    ; preds = %while_body
   %.13.i = fsub double %load_a, %load_b
   br label %calc.exit
 
-elif_1_then.i:                                    ; preds = %entry
+elif_1_then.i:                                    ; preds = %while_body
   %.17.i = fmul double %load_a, %load_b
   br label %calc.exit
 
-elif_1_next.i:                                    ; preds = %entry
+elif_1_next.i:                                    ; preds = %while_body
   %.19.i = fcmp oeq double %load_b, 0.000000e+00
   br i1 %.19.i, label %if_then.1.i, label %next_branch.1.i
 
@@ -115,9 +121,16 @@ next_branch.1.i:                                  ; preds = %elif_1_next.i
 
 calc.exit:                                        ; preds = %if_then.i, %elif_0_then.i, %elif_1_then.i, %if_then.1.i, %next_branch.1.i
   %common.ret.op.i = phi double [ %.9.i, %if_then.i ], [ %.13.i, %elif_0_then.i ], [ %.17.i, %elif_1_then.i ], [ 0.000000e+00, %if_then.1.i ], [ %.27.i, %next_branch.1.i ]
-  %.37 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_10)
-  %.39 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_11, double %common.ret.op.i)
+  %.42 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_10)
+  %.44 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_11, double %common.ret.op.i)
   %putchar2 = call i32 @putchar(i32 10)
+  %.50 = call i32 (ptr, ...) @printf(ptr nonnull dereferenceable(1) @str_1, ptr nonnull @str_12)
+  %.52 = call i32 (ptr, ...) @scanf(ptr nonnull @str_6, ptr nonnull %cont)
+  %load_cont.pr = load i32, ptr %cont, align 4
+  %.21 = icmp eq i32 %load_cont.pr, 1
+  br i1 %.21, label %while_body, label %while_end
+
+while_end:                                        ; preds = %calc.exit
   ret void
 }
 

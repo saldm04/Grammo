@@ -62,9 +62,6 @@ class SymbolTable:
         """
         current = self.scopes[-1]
         if symbol.name in current:
-            # Check for allowed shadowing?
-            # User said "One level of scope".
-            # We treat collision as error.
             return False
         current[symbol.name] = symbol
         return True
