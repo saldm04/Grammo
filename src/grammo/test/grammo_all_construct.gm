@@ -294,5 +294,11 @@ func void -> main() {
     m_class = classify(m_i);
     << "classify=" # (m_class);
 
+    /*
+    for(;;){
+        << "Infinite loop";
+    }
+    */
+
     return;
 }

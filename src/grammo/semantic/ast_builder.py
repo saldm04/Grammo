@@ -153,9 +153,6 @@ class ASTBuilder(Transformer):
         
     def arg_list(self, items):
          # expr (COMMA expr)*
-         # items is list of exprs AND commas (if kept)
-         # If not kept, list of exprs.
-         # _to_expr ensures we wrap tokens.
          return [self._to_expr(item) for item in items if not (hasattr(item, 'type') and item.type == 'COMMA')]
 
     def return_stmt(self, items):
